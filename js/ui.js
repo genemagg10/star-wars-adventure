@@ -160,6 +160,8 @@ const UI = {
         document.getElementById("card-kicker").textContent = opts.kicker || "";
         document.getElementById("card-title").textContent = opts.title || "";
         document.getElementById("card-body").textContent = opts.body || "";
+        const panel = document.querySelector("#screen-card .panel");
+        if (panel) panel.classList.toggle("loud", !!opts.loud);
         const line = document.getElementById("card-line");
         if (opts.line) {
             line.textContent = opts.line;
@@ -211,16 +213,26 @@ const UI = {
         const chase = game.mode === "chase";
         const hearts = chase ? game.chase.hp : game.player.hp;
         const max = chase ? game.chase.maxHp : game.player.maxHp;
+        const touch = document.body.classList.contains("touch") || document.body.classList.contains("has-coarse");
+        let heartX = 20;
+        if (touch) {
+            const cssW = game.cssW || CANVAS_W;
+            heartX = Math.max(108, ((96 / Math.max(1, cssW)) * CANVAS_W) + 10);
+        }
         for (let i = 0; i < max; i++) {
-            Sprites.draw(ctx, i < hearts ? "heart" : "heart-empty", 20 + i * 18, 24, false);
+            const hx = heartX + i * 20;
+            if (i < hearts) {
+                ctx.fillStyle = "rgba(61, 219, 122, 0.28)";
+                ctx.fillRect(hx - 9, 14, 18, 18);
+            }
+            Sprites.draw(ctx, i < hearts ? "heart" : "heart-empty", hx, 24, false);
         }
 
         let text = "Death Star";
         if (chase) {
             const left = Math.max(0, Math.ceil(game.chase.duration - game.chase.t));
-            text = "Survive the chase lane · " + left + "s";
-        } else if (game.bannerT > 0 && game.sector) {
-            text = game.sector.name;
+            const goal = game.chase.objective || "Fly the lane";
+            text = goal + " · " + left + "s";
         } else if (game.objective) {
             text = game.objective;
         }
@@ -228,7 +240,7 @@ const UI = {
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         const pad = 28;
-        const w = Math.min(460, Math.ceil(ctx.measureText(text).width + pad));
+        const w = Math.min(420, Math.ceil(ctx.measureText(text).width + pad));
         const x = Math.round(CANVAS_W / 2 - w / 2);
         ctx.fillStyle = PALETTE.hull;
         ctx.fillRect(x, 12, w, 26);
@@ -247,7 +259,7 @@ const UI = {
         diamond(ctx, gx, 26, 9, PALETTE.ink);
         diamond(ctx, gx, 26, 6, gem);
         if (!chase && game.companionJoined) {
-            Sprites.draw(ctx, "little", CANVAS_W - 64, 28, false);
+            Sprites.draw(ctx, "grogu-face", CANVAS_W - 58, 26, false);
         }
     },
 };

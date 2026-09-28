@@ -1,4 +1,37 @@
-// Star Wars Adventure — title, decks, chase lane, and the Emperor.
+// Star Wars Adventure — title, decks, chase lanes, and the Emperor.
+
+const CHASES = {
+    hangar: {
+        rewardId: "chrome",
+        duration: 28,
+        objective: "Break through the TIEs",
+        style: "hangar",
+        spawnEvery: 0.55,
+        cap: 8,
+        debris: false,
+        toast: "X-wing. Shoot the TIE fighters.",
+        kicker: "Hangar Run",
+        winTitle: "Hangar clear",
+        winBody: "The X-wing breaks through the TIE fighters.",
+        loseTitle: "Lane breach",
+        loseBody: "The TIE fighters caught the X-wing.",
+    },
+    conduit: {
+        rewardId: "shadow",
+        duration: 24,
+        objective: "Thread the conduit",
+        style: "conduit",
+        spawnEvery: 0.62,
+        cap: 7,
+        debris: true,
+        toast: "X-wing. Thread the conduit.",
+        kicker: "Conduit Run",
+        winTitle: "Conduit clear",
+        winBody: "The X-wing slips out of the conduit.",
+        loseTitle: "Conduit breach",
+        loseBody: "The conduit closed on the X-wing.",
+    },
+};
 
 const Game = {
     mode: "menu",
@@ -10,6 +43,7 @@ const Game = {
     pressed: {},
     camera: { x: 0, y: 0 },
     shake: 0,
+    flash: 0,
     heroId: null,
     pendingHero: null,
     saber: "blue",
@@ -64,6 +98,8 @@ const Game = {
     resize() {
         const frame = document.getElementById("frame");
         const rect = frame.getBoundingClientRect();
+        this.cssW = rect.width;
+        this.cssH = rect.height;
         const aspect = rect.width / Math.max(1, rect.height);
         const w = canvasWidthForAspect(aspect);
         CANVAS_W = w;
@@ -107,9 +143,12 @@ const Game = {
         const dt = Math.min(0.05, (ts - this.last) / 1000);
         this.last = ts;
         this.time += dt;
+        this.shake = Math.max(0, this.shake - dt);
+        this.flash = Math.max(0, this.flash - dt);
         const input = this.readInput();
         if (this.mode === "play") this.updatePlay(dt, input);
         else if (this.mode === "chase") this.updateChase(dt, input);
+        TouchControls.sync(this);
         this.draw();
         requestAnimationFrame((t) => this.loop(t));
     },
@@ -153,7 +192,6 @@ const Game = {
     updatePlay(dt, input) {
         if (this.toastT > 0) this.toastT -= dt;
         if (this.bannerT > 0) this.bannerT -= dt;
-        this.shake = Math.max(0, this.shake - dt);
         if (this.frozen || !this.player) return;
         Entities.updateAll(this, dt, input);
         if (this.pending && !this.frozen) {
@@ -234,7 +272,7 @@ const Game = {
         this.frozen = false;
         UI.hideAll();
         this.enterSector(0);
-        this.toast("WASD move · Space lightsaber · E interact");
+        this.toast("Move, swing the lightsaber, interact");
         this.toastT = 4.2;
         this.save();
     },
@@ -298,6 +336,11 @@ const Game = {
         document.body.classList.add("playing");
         this.refreshObjective();
         this.focusCamera();
+        const rewardWaiting = bossDown && spec.bossId && !this.resolved[spec.bossId];
+        if (!missing.length && !rewardWaiting) {
+            this.toast(spec.name);
+            this.toastT = 2.1;
+        }
         if (missing.length) {
             const names = missing.map((id) => POWERS[id].name).join(", ");
             this.openCard({
@@ -321,27 +364,24 @@ const Game = {
         const s = this.sector;
         if (!s) return;
         if (s.bossId === "hooded" && this.missingPowers().length) {
-            this.objective = "The core is sealed";
+            this.objective = "Earn four Force powers";
             return;
         }
         const bossAlive = this.enemies.some((e) => e.alive && e.kind === "boss");
         if (bossAlive) {
-            const boss = this.enemies.filter((e) => e.kind === "boss")[0];
-            const label = boss ? boss.name : "boss";
-            const article = label === "Inquisitor" || label === "Emperor" ? "the " : "";
-            this.objective = "Defeat " + article + label;
+            this.objective = s.bossGoal || "Defeat the boss";
             return;
         }
         if (this.chestBlocksExit()) {
-            this.objective = "Open the salvage chest";
+            this.objective = s.chestGoal || "Open the salvage chest";
             return;
         }
         if (this.enemies.some((e) => e.alive)) {
-            this.objective = "Drop the stormtroopers";
+            this.objective = s.clearGoal || "Clear the deck";
             return;
         }
-        if (s.exit) this.objective = "Reach the north lock";
-        else this.objective = "Hold the deck";
+        if (s.exit) this.objective = s.exitGoal || "Reach the north lock";
+        else this.objective = s.clearGoal || "Hold the deck";
     },
 
     chestBlocksExit() {
@@ -363,8 +403,8 @@ const Game = {
         this.hint = null;
         if (!p || !s) return;
         const near = (pt, r) => pt && dist(p.x, p.y, pt.x, pt.y) < r;
-        if (near(s.chest, 42) && !this.owns("rock")) this.hint = { x: s.chest.x, y: s.chest.y, label: "Chest" };
-        else if (near(s.panel, 42) && !this.secretOpen) this.hint = { x: s.panel.x, y: s.panel.y, label: "Hatch" };
+        if (near(s.chest, 44) && !this.owns("rock")) this.hint = { x: s.chest.x, y: s.chest.y, label: "Chest" };
+        else if (near(s.panel, 44) && !this.secretOpen) this.hint = { x: s.panel.x, y: s.panel.y, label: "Hatch" };
         else if (near(s.sticker, 44) && this.secretOpen && !this.sticker) this.hint = { x: s.sticker.x, y: s.sticker.y, label: "Sticker" };
         else if (near(s.exit, 44)) this.hint = { x: s.exit.x, y: s.exit.y, label: this.exitOpen() ? "Leave" : "Shut" };
     },
@@ -374,25 +414,26 @@ const Game = {
         const p = this.player;
         const s = this.sector;
         const near = (pt, r) => pt && dist(p.x, p.y, pt.x, pt.y) < r;
-        if (near(s.chest, 36) && !this.owns("rock")) {
+        if (near(s.chest, 44) && !this.owns("rock")) {
             this.grantPower("rock");
             this.save();
-            SoundSystem.pickup();
+            SoundSystem.unlock();
             this.openCard({
                 kicker: "Salvage chest",
                 title: "Rock Toss",
-                body: "The chest between Darth Vader and Kylo Ren clicks open. Press 4 to ready Rock Toss, then Q to throw it.",
+                loud: true,
+                body: "The chest between Darth Vader and Kylo Ren clicks open. Press 4, or tap the Rock chip, then toss it.",
                 buttons: [{ label: "Take it", onClick: () => this.closeCard() }],
             });
             return;
         }
-        if (near(s.panel, 36) && !this.secretOpen) {
+        if (near(s.panel, 44) && !this.secretOpen) {
             this.secretOpen = true;
             this.toast("A side hatch opens");
             SoundSystem.ui();
             return;
         }
-        if (near(s.sticker, 40) && this.secretOpen && !this.sticker) {
+        if (near(s.sticker, 44) && this.secretOpen && !this.sticker) {
             this.sticker = true;
             this.grantAchievement("sticker");
             this.save();
@@ -405,20 +446,30 @@ const Game = {
             });
             return;
         }
-        if (near(s.exit, 36)) {
+        if (near(s.exit, 44)) {
             if (this.exitOpen()) {
                 SoundSystem.ui();
                 this.advance();
             } else {
                 this.toast("The way is shut");
             }
+            return;
         }
+        this.toast("Nothing nearby");
     },
 
     grantPower(id) {
-        if (!this.owns(id)) this.powers.push(id);
+        const fresh = !this.owns(id);
+        if (fresh) this.powers.push(id);
         this.activePower = id;
         this.lastPower = id;
+        if (fresh && this.player) {
+            const color = id === "lightning" ? PALETTE.lightning
+                : id === "rock" ? PALETTE.gold
+                : id === "throw" ? PALETTE.purple
+                : PALETTE.blue;
+            Combat.burst(this, this.player.x, this.player.y, color);
+        }
     },
 
     grantAchievement(id) {
@@ -462,13 +513,14 @@ const Game = {
         if (id === "chrome") {
             this.grantPower("push");
             this.save();
-            SoundSystem.fanfare();
+            SoundSystem.unlock();
             this.openCard({
                 kicker: "Power",
                 title: "Force Push",
-                body: "Captain Phasma's core is yours. Press 1 to ready Force Push, then Q to use it.",
+                loud: true,
+                body: "Captain Phasma's core is yours. Press 1, or tap the Push chip, then use Force Push.",
                 buttons: [
-                    { label: "Chase the lane", onClick: () => this.startChase() },
+                    { label: "Chase the lane", onClick: () => this.startChase("hangar") },
                     { label: "Stay on the Death Star", onClick: () => this.afterReward("chrome") },
                 ],
             });
@@ -477,25 +529,34 @@ const Game = {
         if (id === "shadow") {
             this.grantPower("throw");
             this.save();
-            SoundSystem.fanfare();
+            SoundSystem.unlock();
             this.openCard({
                 kicker: "Power",
                 title: "Saber Throw",
-                body: "Press 2 to ready Saber Throw, then Q to let the lightsaber fly. This chase lane is sealed. The TIE fighters never launch.",
-                buttons: [{ label: "Continue", onClick: () => this.afterReward("shadow") }],
+                loud: true,
+                body: "Press 2, or tap the Throw chip, then let the lightsaber fly. The conduit ahead is open to fly.",
+                buttons: [
+                    { label: "Fly the conduit", onClick: () => this.startChase("conduit") },
+                    { label: "Stay on the Death Star", onClick: () => this.afterReward("shadow") },
+                ],
             });
             return;
         }
         if (id === "dark") {
             this.companionJoined = true;
-            if (this.player) this.companion = Entities.makeCompanion(this.player.x - 14, this.player.y + 18);
+            if (this.player) {
+                this.companion = Entities.makeCompanion(this.player.x - 14, this.player.y + 18);
+                this.companion.echoT = 0.8;
+                Combat.burst(this, this.player.x - 14, this.player.y + 18, PALETTE.gold);
+            }
             this.companionCd = 2;
             this.save();
-            SoundSystem.fanfare();
+            SoundSystem.bond();
             this.openCard({
                 kicker: "Companion",
                 title: "Grogu",
-                body: "Grogu, Baby Yoda, joins you. They have no heart of their own. They echo your last Force power, softly, after a long wait. This chase lane is sealed. The TIE fighters never launch.",
+                loud: true,
+                body: "Grogu, Baby Yoda, joins you. They have no heart of their own. A gold echo follows your last Force power after a long wait.",
                 buttons: [{ label: "Continue", onClick: () => this.afterReward("dark") }],
             });
             return;
@@ -505,13 +566,14 @@ const Game = {
             this.grantPower("lightning");
             if (missedRock) this.grantPower("rock");
             this.save();
-            SoundSystem.fanfare();
+            SoundSystem.unlock();
             const body = missedRock
-                ? "Press 3 to ready Lightning, then Q. The salvage chest could not be opened, so Rock Toss is yours as well. Press 4, then Q. This chase lane is sealed. The TIE fighters never launch."
-                : "Press 3 to ready Lightning, then Q. Lavender light answers. This chase lane is sealed. The TIE fighters never launch.";
+                ? "Press 3, or tap the Bolt chip, for Lightning. The salvage chest could not be opened, so Rock Toss is yours as well. Press 4, then use it."
+                : "Press 3, or tap the Bolt chip, for Lightning. Lavender light answers.";
             this.openCard({
                 kicker: "Power",
                 title: "Lightning",
+                loud: true,
                 body: body,
                 buttons: [{ label: "Continue", onClick: () => this.afterReward("fallen") }],
             });
@@ -548,6 +610,7 @@ const Game = {
             title: "Death Star Saved",
             body: "The Emperor falls. The Death Star's core holds.",
             line: WIN_LINE,
+            loud: true,
             notes: notes,
             buttons: [
                 { label: "Back to title", onClick: () => this.quitToTitle() },
@@ -565,77 +628,113 @@ const Game = {
         UI.showHero();
     },
 
-    startChase() {
-        this.resolved.chrome = true;
+    startChase(kind) {
+        if (!CHASES[kind]) kind = "hangar";
+        const spec = CHASES[kind];
+        this.resolved[spec.rewardId] = true;
         this.paused = false;
         UI.hidePause();
         this.closeCard();
         this.downed = false;
         this.mode = "chase";
+        this.flash = 0;
         this.chase = {
+            kind: kind,
             t: 0,
-            duration: 30,
+            duration: spec.duration,
+            objective: spec.objective,
             hp: 6,
             maxHp: 6,
             invuln: 0,
             x: CANVAS_W / 2,
-            y: CANVAS_H * 0.68,
+            y: CANVAS_H * 0.72,
             facing: { x: 0, y: -1 },
             cd: 0,
+            pushCd: 0,
             enemies: [],
             shots: [],
-            spawn: 0.3,
+            sparks: [],
+            spawn: 0.2,
             over: false,
+            beat: null,
+            beatT: 0,
+            card: false,
         };
         document.body.classList.add("playing");
-        this.toast("X-wing. Shoot the TIE fighters.");
+        this.toast(spec.toast);
         this.toastT = 3.2;
         this.save();
     },
 
     updateChase(dt, input) {
         if (this.toastT > 0) this.toastT -= dt;
-        if (this.frozen || !this.chase || this.chase.over) return;
+        if (!this.chase) return;
         const c = this.chase;
+        this.stepChaseSparks(c, dt);
+        if (c.over) {
+            if (this.frozen && !c.card) return;
+            if (c.beat === "win" && c.beatT > 0 && Math.random() < 0.55) {
+                this.chaseSpark(c, c.x + (Math.random() - 0.5) * 50, c.y + (Math.random() - 0.5) * 28, PALETTE.gold);
+            }
+            c.beatT -= dt;
+            if (c.beatT <= 0 && !c.card) {
+                c.card = true;
+                this.openChaseCard(c);
+            }
+            return;
+        }
+        if (this.frozen) return;
+        const spec = CHASES[c.kind] || CHASES.hangar;
         c.t += dt;
         c.invuln = Math.max(0, c.invuln - dt);
         c.cd = Math.max(0, c.cd - dt);
-        const spd = 230;
+        c.pushCd = Math.max(0, c.pushCd - dt);
+        const spd = 250;
         c.x = clamp(c.x + input.move.x * spd * dt, 36, CANVAS_W - 36);
         c.y = clamp(c.y + input.move.y * spd * dt, 70, CANVAS_H - 36);
         if (input.move.x || input.move.y) c.facing = { x: input.move.x, y: input.move.y };
         if (input.attack && c.cd <= 0) {
-            c.cd = 0.2;
+            c.cd = 0.16;
             const dir = c.facing.x || c.facing.y ? c.facing : { x: 0, y: -1 };
             const n = normalize(dir.x, dir.y);
-            c.shots.push({ x: c.x + n.x * 16, y: c.y + n.y * 16, vx: n.x * 380, vy: n.y * 380, team: "player", life: 1.1 });
+            c.shots.push({ x: c.x + n.x * 16, y: c.y + n.y * 16, vx: n.x * 420, vy: n.y * 420, team: "player", life: 1.05 });
             SoundSystem.shot();
         }
+        if (input.power && this.owns("push") && c.pushCd <= 0) {
+            c.pushCd = 1.3;
+            SoundSystem.force("push", false);
+            for (let i = c.shots.length - 1; i >= 0; i--) {
+                const s = c.shots[i];
+                if (s.team === "foe" && dist(s.x, s.y, c.x, c.y) < 92) {
+                    this.chaseSpark(c, s.x, s.y, PALETTE.blue);
+                    c.shots.splice(i, 1);
+                }
+            }
+            this.chaseSpark(c, c.x, c.y - 16, PALETTE.foam);
+        }
         c.spawn -= dt;
-        if (c.spawn <= 0 && c.t < c.duration - 3 && c.enemies.length < 6) {
-            c.spawn = 1.15;
-            c.enemies.push({
-                x: 50 + Math.random() * (CANVAS_W - 100),
-                y: -16,
-                hp: 2,
-                vx: (Math.random() - 0.5) * 40,
-                vy: 80 + Math.random() * 40,
-                cd: 0.6 + Math.random(),
-            });
+        if (c.spawn <= 0 && c.t < c.duration - 2.5 && c.enemies.length < spec.cap) {
+            c.spawn = spec.spawnEvery;
+            this.spawnChaseFoe(c, spec, false);
+            if (spec.debris && c.enemies.length < spec.cap) this.spawnChaseFoe(c, spec, true);
+            else if (!spec.debris && Math.random() < 0.55 && c.enemies.length < spec.cap) {
+                this.spawnChaseFoe(c, spec, false);
+            }
         }
         for (let i = c.enemies.length - 1; i >= 0; i--) {
             const e = c.enemies[i];
             e.x += e.vx * dt;
             e.y += e.vy * dt;
             e.cd -= dt;
-            if (e.cd <= 0 && e.y > 10 && e.y < CANVAS_H) {
-                e.cd = 1.45;
+            if (e.kind !== "debris" && e.cd <= 0 && e.y > 10 && e.y < CANVAS_H) {
+                e.cd = 1.2;
                 const aim = normalize(c.x - e.x, c.y - e.y);
-                c.shots.push({ x: e.x, y: e.y + 8, vx: aim.x * 150, vy: aim.y * 150, team: "foe", life: 2 });
+                c.shots.push({ x: e.x, y: e.y + 8, vx: aim.x * 170, vy: aim.y * 170, team: "foe", life: 2 });
                 SoundSystem.bolt();
             }
-            if (dist(e.x, e.y, c.x, c.y) < 22) this.chaseHurt(c);
-            if (e.y > CANVAS_H + 30 || e.hp <= 0) c.enemies.splice(i, 1);
+            const hitR = e.kind === "debris" ? 16 : 20;
+            if (dist(e.x, e.y, c.x, c.y) < hitR) this.chaseHurt(c);
+            if (e.y > CANVAS_H + 36 || e.hp <= 0) c.enemies.splice(i, 1);
         }
         for (let i = c.shots.length - 1; i >= 0; i--) {
             const s = c.shots[i];
@@ -646,9 +745,10 @@ const Game = {
             if (!gone && s.team === "player") {
                 for (let n = 0; n < c.enemies.length; n++) {
                     const e = c.enemies[n];
-                    if (dist(s.x, s.y, e.x, e.y) < 16) {
+                    if (dist(s.x, s.y, e.x, e.y) < (e.kind === "debris" ? 14 : 16)) {
                         e.hp -= 1;
                         gone = true;
+                        this.chaseSpark(c, e.x, e.y, e.kind === "debris" ? PALETTE.danger : PALETTE.gold);
                         SoundSystem.boom();
                         break;
                     }
@@ -659,36 +759,93 @@ const Game = {
             }
             if (gone) c.shots.splice(i, 1);
         }
-        if (c.hp <= 0) {
-            c.over = true;
+        if (c.hp <= 0) this.beginChaseBeat(c, "lose");
+        else if (c.t >= c.duration) this.beginChaseBeat(c, "win");
+    },
+
+    spawnChaseFoe(c, spec, debris) {
+        c.enemies.push({
+            kind: debris ? "debris" : "tie",
+            x: 56 + Math.random() * (CANVAS_W - 112),
+            y: -18 - (debris ? 8 : 0),
+            hp: 2,
+            vx: (Math.random() - 0.5) * (debris ? 28 : 70),
+            vy: debris ? 78 + Math.random() * 36 : 120 + Math.random() * 80,
+            cd: 0.35 + Math.random() * 0.55,
+        });
+    },
+
+    beginChaseBeat(c, beat) {
+        if (c.over) return;
+        c.over = true;
+        c.beat = beat;
+        c.beatT = beat === "win" ? 0.62 : 0.42;
+        if (beat === "win") {
+            SoundSystem.fanfare();
+            for (let i = 0; i < 4; i++) this.chaseSpark(c, c.x, c.y, i % 2 ? PALETTE.gold : PALETTE.foam);
+        } else {
+            this.flash = 0.18;
+            SoundSystem.hurt();
+        }
+    },
+
+    openChaseCard(c) {
+        const spec = CHASES[c.kind] || CHASES.hangar;
+        if (c.beat === "win") {
             this.openCard({
-                title: "Lane breach",
-                body: "The TIE fighters caught the X-wing.",
-                buttons: [
-                    { label: "Retry the lane", onClick: () => this.startChase() },
-                    { label: "Skip the lane", onClick: () => this.afterReward("chrome") },
-                ],
+                kicker: spec.kicker,
+                title: spec.winTitle,
+                loud: true,
+                body: spec.winBody,
+                buttons: [{ label: "Continue", onClick: () => this.afterReward(spec.rewardId) }],
             });
             return;
         }
-        if (c.t >= c.duration) {
-            c.over = true;
-            SoundSystem.fanfare();
-            this.openCard({
-                kicker: "Chase Lane",
-                title: "Lane clear",
-                body: "The X-wing breaks through the TIE fighters.",
-                buttons: [{ label: "Continue", onClick: () => this.afterReward("chrome") }],
+        this.openCard({
+            title: spec.loseTitle,
+            body: spec.loseBody,
+            buttons: [
+                { label: "Retry the lane", onClick: () => this.startChase(c.kind) },
+                { label: "Skip the lane", onClick: () => this.afterReward(spec.rewardId) },
+            ],
+        });
+    },
+
+    chaseSpark(c, x, y, color) {
+        for (let i = 0; i < 5; i++) {
+            const a = Math.random() * Math.PI * 2;
+            const spd = 40 + Math.random() * 110;
+            c.sparks.push({
+                x: x,
+                y: y,
+                vx: Math.cos(a) * spd,
+                vy: Math.sin(a) * spd,
+                life: 0.18 + Math.random() * 0.12,
+                color: color,
             });
+        }
+    },
+
+    stepChaseSparks(c, dt) {
+        if (!c.sparks) c.sparks = [];
+        for (let i = c.sparks.length - 1; i >= 0; i--) {
+            const s = c.sparks[i];
+            s.x += s.vx * dt;
+            s.y += s.vy * dt;
+            s.life -= dt;
+            if (s.life <= 0) c.sparks.splice(i, 1);
         }
     },
 
     chaseHurt(c) {
         if (c.invuln > 0 || c.over || c.hp <= 0) return;
         c.hp -= 1;
-        c.invuln = 0.85;
+        c.invuln = 0.7;
         this.shake = 0.12;
+        this.flash = 0.12;
         SoundSystem.hurt();
+        if (c.hp > 0 && c.hp <= 2) SoundSystem.lowHp();
+        this.chaseSpark(c, c.x, c.y, PALETTE.danger);
     },
 
     openCard(opts) {
@@ -760,7 +917,7 @@ const Game = {
         }
         ctx.save();
         if (this.shake > 0) {
-            const mag = this.shake * 10;
+            const mag = 6 * Math.min(1, this.shake / 0.12);
             ctx.translate((Math.random() - 0.5) * mag, (Math.random() - 0.5) * mag);
         }
         if (this.mode === "chase") this.drawChase();
@@ -769,6 +926,10 @@ const Game = {
             Entities.draw(ctx, this);
         }
         ctx.restore();
+        if (this.flash > 0 && (this.mode === "play" || this.mode === "chase")) {
+            ctx.fillStyle = "rgba(255, 122, 69, 0.08)";
+            ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+        }
         if ((this.mode === "play" || this.mode === "chase") && (this.player || this.chase)) {
             UI.drawHud(ctx, this);
         }
@@ -793,27 +954,46 @@ const Game = {
     drawChase() {
         const ctx = this.ctx;
         const c = this.chase;
-        ctx.fillStyle = PALETTE.hull;
-        for (let i = 0; i < 10; i++) {
-            const y = ((i * 70 + c.t * 180) % (CANVAS_H + 70)) - 30;
-            ctx.fillRect(28, y, 6, 22);
-            ctx.fillRect(CANVAS_W - 34, y, 6, 22);
+        const spec = CHASES[c.kind] || CHASES.hangar;
+        const speed = spec.style === "conduit" ? 280 : 220;
+        ctx.fillStyle = spec.style === "conduit" ? PALETTE.panel : PALETTE.hull;
+        for (let i = 0; i < 12; i++) {
+            const y = ((i * 64 + c.t * speed) % (CANVAS_H + 64)) - 28;
+            const color = spec.style === "conduit" ? PALETTE.purple : PALETTE.hull;
+            ctx.fillStyle = color;
+            ctx.fillRect(22, y, 10, 26);
+            ctx.fillRect(CANVAS_W - 32, y, 10, 26);
+            if (spec.style === "conduit") {
+                ctx.fillStyle = PALETTE.danger;
+                ctx.fillRect(40, y + 8, 8, 4);
+                ctx.fillRect(CANVAS_W - 52, y + 14, 8, 4);
+            }
         }
-        ctx.fillStyle = PALETTE.gold;
-        for (let i = 0; i < 7; i++) {
-            const y = ((i * 96 + c.t * 240) % (CANVAS_H + 96)) - 40;
-            ctx.fillRect(CANVAS_W / 2 - 2, y, 4, 16);
+        ctx.fillStyle = spec.style === "conduit" ? PALETTE.lightning : PALETTE.gold;
+        for (let i = 0; i < 8; i++) {
+            const y = ((i * 84 + c.t * (speed + 40)) % (CANVAS_H + 84)) - 36;
+            ctx.fillRect(CANVAS_W / 2 - 2, y, 4, 14);
         }
         for (let i = 0; i < c.enemies.length; i++) {
             const e = c.enemies[i];
-            blitShip(ctx, "ship-snub", e.x, e.y, { x: e.vx, y: Math.max(0.2, e.vy) });
+            if (e.kind === "debris") Sprites.draw(ctx, "debris", e.x, e.y, false);
+            else blitShip(ctx, "ship-snub", e.x, e.y, { x: e.vx, y: Math.max(0.2, e.vy) });
         }
         for (let i = 0; i < c.shots.length; i++) {
             const s = c.shots[i];
             ctx.fillStyle = s.team === "player" ? PALETTE.blue : PALETTE.foam;
-            ctx.fillRect(s.x - 2, s.y - 2, 4, 4);
+            ctx.fillRect(s.x - 2, s.y - 3, 4, 8);
         }
-        blitShip(ctx, "ship-twin", c.x, c.y, c.facing.x || c.facing.y ? c.facing : { x: 0, y: -1 });
+        for (let i = 0; i < c.sparks.length; i++) {
+            const s = c.sparks[i];
+            ctx.globalAlpha = Math.max(0, Math.min(1, s.life * 4));
+            ctx.fillStyle = s.color;
+            ctx.fillRect(s.x - 1, s.y - 1, 3, 3);
+            ctx.globalAlpha = 1;
+        }
+        if (!(c.invuln > 0 && Math.floor(this.time * 16) % 2 === 0)) {
+            blitShip(ctx, "ship-twin", c.x, c.y, c.facing.x || c.facing.y ? c.facing : { x: 0, y: -1 });
+        }
     },
 };
 

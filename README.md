@@ -27,23 +27,30 @@ Open `http://localhost:8080`. A local server is the reliable way to run it. The 
 | E | Interact |
 | Esc | Pause |
 
-On a phone, turn sideways. A stick sits on the left. Attack, Power, and Interact sit on the right.
+## Touch
 
-Lightsaber colors are blue, green, purple, yellow, white, and orange.
+Turn the phone sideways. A stick sits on the left. Attack and Power sit on the right.
+
+- Chips **1–4** appear for each unlocked Force power. The newest power selects itself.
+- **Interact** stays dim until you stand beside a door, chest, hatch, or exit. It then names that thing (Chest, Hatch, Leave).
+- **Pause** is on the screen. Phone play does not need Esc.
+- In a chase, Attack fires the X-wing. Power, once you have Force Push, shoves nearby TIE shots away.
+
+Lightsaber colors are blue, green, purple, yellow, white, and orange. Hearts are green. The objective chip is one line. The saber gem sits at the right, and Grogu's face joins it after Darth Vader.
 
 ## How a run goes
 
 1. Title, then pick Luke Skywalker, Rey, or Chewbacca.
 2. Pick a lightsaber color.
 3. Docking Ring — stormtroopers.
-4. Phasma Hangar — defeat Captain Phasma to learn **Force Push**. An optional chase lane is open here.
-5. Inquisitor Conduit — defeat the Inquisitor to learn **Saber Throw**.
+4. Phasma Hangar — defeat Captain Phasma to learn **Force Push**. The Hangar Run is a real chase: steer an X-wing, shoot TIE fighters, and break through.
+5. Inquisitor Conduit — defeat the Inquisitor to learn **Saber Throw**. The Conduit Run is a second chase, with debris and TIE fighters, and it has a clear start and finish.
 6. Throne Gallery — defeat Darth Vader. **Grogu** (Baby Yoda) joins. No Force power from this fight.
 7. Trash Compactor — open the salvage chest to learn **Rock Toss**. A side hatch hides a Chewbacca-bot sticker.
 8. Kylo Deck — defeat Kylo Ren to learn **Lightning**.
 9. Core Gate — the Emperor stays sealed until you hold all four Force powers. Win, and the card reads **Part Two coming soon!**
 
-The one real chase lane is the hangar launch: steer an X-wing and shoot TIE fighters for 30 seconds. The later lanes are sealed.
+Both chase lanes are playable. You can skip either one and stay on the Death Star. Each lane ends when the timer clears or the X-wing is shot down.
 
 Force power keys stay fixed:
 

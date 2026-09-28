@@ -148,13 +148,13 @@ const FLOOR_CYCLE = {
 
 const World = {
     sectors: [
-        { id: "dock", name: "Docking Ring", bossId: null, needsChest: false, build: deckDock },
-        { id: "hangar", name: "Phasma Hangar", bossId: "chrome", needsChest: false, build: deckHangar },
-        { id: "conduit", name: "Inquisitor Conduit", bossId: "shadow", needsChest: false, build: deckConduit },
-        { id: "gallery", name: "Throne Gallery", bossId: "dark", needsChest: false, build: deckGallery },
-        { id: "trash", name: "Trash Compactor", bossId: null, needsChest: true, build: deckTrash },
-        { id: "fallen", name: "Kylo Deck", bossId: "fallen", needsChest: false, build: deckFallen },
-        { id: "core", name: "Core Gate", bossId: "hooded", needsChest: false, build: deckCore },
+        { id: "dock", name: "Docking Ring", bossId: null, needsChest: false, build: deckDock, clearGoal: "Clear the ring", exitGoal: "Reach the hangar" },
+        { id: "hangar", name: "Phasma Hangar", bossId: "chrome", needsChest: false, build: deckHangar, bossGoal: "Defeat Captain Phasma", exitGoal: "Leave the hangar" },
+        { id: "conduit", name: "Inquisitor Conduit", bossId: "shadow", needsChest: false, build: deckConduit, bossGoal: "Defeat the Inquisitor", exitGoal: "Leave the conduit" },
+        { id: "gallery", name: "Throne Gallery", bossId: "dark", needsChest: false, build: deckGallery, bossGoal: "Defeat Darth Vader", exitGoal: "Leave the gallery" },
+        { id: "trash", name: "Trash Compactor", bossId: null, needsChest: true, build: deckTrash, clearGoal: "Clear the compactor", chestGoal: "Open the salvage chest", exitGoal: "Leave the compactor" },
+        { id: "fallen", name: "Kylo Deck", bossId: "fallen", needsChest: false, build: deckFallen, bossGoal: "Defeat Kylo Ren", exitGoal: "Leave the deck" },
+        { id: "core", name: "Core Gate", bossId: "hooded", needsChest: false, build: deckCore, bossGoal: "Defeat the Emperor", clearGoal: "Hold the core", exitGoal: "Hold the core" },
     ],
 
     bake(spec) {
@@ -173,7 +173,7 @@ const World = {
             for (let x = 0; x < w; x++) {
                 const ch = tiles[y][x];
                 const p = tileToWorld(x, y);
-                if (ch === "P") { spawn = p; tiles[y][x] = "."; }
+                if (ch === "P") { spawn = p; tiles[y][x] = "A"; }
                 else if (ch === "G") { guards.push(p); tiles[y][x] = "."; }
                 else if (ch === "B") { boss = p; tiles[y][x] = "."; }
                 else if (ch === "E") {
@@ -202,6 +202,10 @@ const World = {
             id: spec.id,
             name: spec.name,
             bossId: spec.bossId,
+            bossGoal: spec.bossGoal || "",
+            clearGoal: spec.clearGoal || "",
+            chestGoal: spec.chestGoal || "",
+            exitGoal: spec.exitGoal || "",
             needsChest: spec.needsChest,
             chestReachable: chestReachable,
             w: w,
@@ -234,6 +238,8 @@ const World = {
         if (ch === "C") return game.owns("rock") ? "floor" : "chest";
         if (ch === "=") return "stripe";
         if (ch === "K") return "switch";
+        if (ch === "A") return "pad";
+        if (Math.abs((tx * 17 + ty * 5) % 17) === 0) return "viewport";
         const cycle = FLOOR_CYCLE[sector.id] || FLOOR_CYCLE.dock;
         const n = Math.abs((tx * 13 + ty * 7) % cycle.length);
         return cycle[n];

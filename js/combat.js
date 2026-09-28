@@ -7,6 +7,18 @@ const Combat = {
         if (!ent || !ent.alive) return;
         ent.hp -= dmg;
         ent.hitFlash = 0.12;
+        for (let n = 0; n < 3; n++) {
+            const a = Math.random() * Math.PI * 2;
+            game.fx.push({
+                kind: "spark",
+                x: ent.x,
+                y: ent.y,
+                vx: Math.cos(a) * 70,
+                vy: Math.sin(a) * 70,
+                life: 0.12,
+                color: PALETTE.foam,
+            });
+        }
         if (ent.hp <= 0) {
             ent.hp = 0;
             ent.alive = false;
@@ -24,8 +36,10 @@ const Combat = {
         const away = normalize(p.x - fromX, p.y - fromY);
         p.kx = away.x * 180;
         p.ky = away.y * 180;
-        game.shake = 0.16;
+        game.shake = 0.12;
+        game.flash = 0.12;
         SoundSystem.hurt();
+        if (p.hp > 0 && p.hp <= 2) SoundSystem.lowHp();
         if (p.hp <= 0) {
             p.hp = 0;
             game.onPlayerDown();
@@ -122,7 +136,6 @@ const Combat = {
         this.cast(game, p, id, { weak: false, team: "player" });
         game.lastPower = id;
         game.notePowerUsed(id);
-        SoundSystem.power();
     },
 
     cast(game, source, id, opts) {
@@ -134,6 +147,7 @@ const Combat = {
         else if (id === "throw") this.saberThrow(game, source, dmg, team, !!opts.weak);
         else if (id === "lightning") this.lightning(game, source, dmg, team, !!opts.weak);
         else if (id === "rock") this.rock(game, source, dmg, team, !!opts.weak);
+        SoundSystem.force(id, !!opts.weak || team === "foe");
     },
 
     push(game, source, dmg, team, weak) {
@@ -160,9 +174,16 @@ const Combat = {
                 t.ky += away.y * 260;
             }
         }
-        const px = source.x + dir.x * 28;
-        const py = source.y + dir.y * 28;
-        game.fx.push({ kind: "ring", x: px, y: py, r: 6, life: 0.18, color: PALETTE.foam });
+        game.fx.push({
+            kind: "push",
+            x: source.x,
+            y: source.y,
+            dirx: dir.x || 1,
+            diry: dir.y || 0,
+            range: range,
+            life: 0.2,
+            color: PALETTE.blue,
+        });
     },
 
     saberThrow(game, source, dmg, team, weak) {
@@ -195,12 +216,20 @@ const Combat = {
         const y2 = source.y + dir.y * range;
         game.fx.push({
             kind: "bolt",
-            x1: source.x,
-            y1: source.y,
-            x2: x2,
-            y2: y2,
-            life: 0.14,
+            pts: jaggedLine(source.x, source.y, x2, y2),
+            life: 0.16,
             color: PALETTE.lightning,
+        });
+        game.fx.push({
+            kind: "bolt",
+            pts: jaggedLine(
+                source.x,
+                source.y,
+                source.x + dir.x * range * 0.62 + dir.y * 22,
+                source.y + dir.y * range * 0.62 - dir.x * 22
+            ),
+            life: 0.1,
+            color: PALETTE.foam,
         });
         if (team === "foe") {
             if (beamHits(source, game.player, dir, range, 16)) {
@@ -245,7 +274,9 @@ const Combat = {
 
     explode(game, shot) {
         SoundSystem.boom();
-        game.fx.push({ kind: "ring", x: shot.x, y: shot.y, r: 8, life: 0.24, color: PALETTE.gold });
+        this.burst(game, shot.x, shot.y, PALETTE.gold);
+        game.fx.push({ kind: "ring", x: shot.x, y: shot.y, r: 8, life: 0.28, color: PALETTE.gold });
+        game.fx.push({ kind: "ring", x: shot.x, y: shot.y, r: 4, life: 0.2, color: PALETTE.danger });
         if (shot.team === "player") {
             for (let i = 0; i < game.enemies.length; i++) {
                 const e = game.enemies[i];
@@ -284,8 +315,23 @@ const Combat = {
                     s.hit = {};
                 }
             }
+            if (s.kind === "saber") {
+                s.spin = (s.spin || 0) + dt * 22;
+                game.fx.push({ kind: "spark", x: s.x, y: s.y, vx: 0, vy: 0, life: 0.08, color: s.color });
+            }
             if (s.kind === "rock") {
                 s.hop += dt;
+                if (Math.random() < 0.55) {
+                    game.fx.push({
+                        kind: "spark",
+                        x: s.x,
+                        y: s.y,
+                        vx: -s.vx * 0.05 + (Math.random() - 0.5) * 20,
+                        vy: -s.vy * 0.05 + (Math.random() - 0.5) * 20,
+                        life: 0.16,
+                        color: PALETTE.gold,
+                    });
+                }
                 if (s.life <= 0) {
                     this.explode(game, s);
                     continue;
@@ -335,6 +381,24 @@ const Combat = {
         game.fx = game.fx.filter((f) => f.life > 0);
     },
 };
+
+function jaggedLine(x1, y1, x2, y2) {
+    const pts = [{ x: x1, y: y1 }];
+    const segs = 6;
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const len = Math.hypot(dx, dy) || 1;
+    for (let i = 1; i < segs; i++) {
+        const t = i / segs;
+        const off = (Math.random() - 0.5) * 22;
+        pts.push({
+            x: x1 + dx * t + (-dy / len) * off,
+            y: y1 + dy * t + (dx / len) * off,
+        });
+    }
+    pts.push({ x: x2, y: y2 });
+    return pts;
+}
 
 function beamHits(source, target, dir, range, width) {
     if (!target) return false;

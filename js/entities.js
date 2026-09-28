@@ -239,7 +239,7 @@ const Entities = {
         }
         this.separate(game);
         if (game.companionJoined) {
-            if (!game.companion) game.companion = this.makeCompanion(p.x, p.y + 16);
+            if (!game.companion) game.companion = this.makeCompanion(game.player.x, game.player.y + 16);
             this.updateCompanion(game, dt);
             this.updateEcho(game, dt);
         }
@@ -305,6 +305,7 @@ const Entities = {
             slide(c, dir.x * 120 * dt, dir.y * 120 * dt, game);
         }
         c.bob = (c.bob || 0) + dt;
+        c.echoT = Math.max(0, (c.echoT || 0) - dt);
     },
 
     updateEcho(game, dt) {
@@ -325,8 +326,11 @@ const Entities = {
         if (!best) return;
         const c = game.companion;
         c.facing = normalize(best.x - c.x, best.y - c.y);
+        c.echoT = 0.55;
         game.companionCd = 8;
         Combat.cast(game, c, game.lastPower, { weak: true, team: "player" });
+        game.fx.push({ kind: "ring", x: c.x, y: c.y, r: 6, life: 0.4, color: PALETTE.gold });
+        Combat.burst(game, c.x, c.y, PALETTE.gold);
     },
 
     hazard(game, dt) {
@@ -367,11 +371,12 @@ const Entities = {
         drawShots(ctx, game);
         drawFx(ctx, game);
         if (game.hint) {
+            const touch = document.body.classList.contains("touch") || document.body.classList.contains("has-coarse");
             ctx.fillStyle = PALETTE.gold;
             ctx.font = "12px ui-monospace, monospace";
             ctx.textAlign = "center";
             ctx.textBaseline = "bottom";
-            ctx.fillText("E  " + game.hint.label, game.hint.x - cam.x, game.hint.y - cam.y - 16);
+            ctx.fillText((touch ? "" : "E  ") + game.hint.label, game.hint.x - cam.x, game.hint.y - cam.y - 16);
         }
     },
 };
@@ -404,22 +409,33 @@ function drawPlayer(ctx, game) {
     const p = game.player;
     const cam = game.camera;
     if (p.invuln > 0 && Math.floor(game.time * 16) % 2 === 0) return;
+    const bobRate = p.heroId === "rae" ? 12 : 8;
+    const bob = p.moving ? (Math.floor(game.time * bobRate) % 2) : 0;
     const sx = p.x - cam.x;
-    const sy = p.y - cam.y + (p.moving ? (Math.floor(game.time * 8) % 2) : 0);
+    const sy = p.y - cam.y + bob;
     shadow(ctx, sx, sy);
     const hero = HEROES[p.heroId];
     const color = saberById(game.saber).color;
     if (hero.melee === "spin" && p.swing > 0) {
         ctx.save();
         ctx.strokeStyle = color;
-        ctx.lineWidth = 3;
+        ctx.globalAlpha = 0.35;
+        ctx.lineWidth = 8;
         ctx.beginPath();
         ctx.arc(sx, sy, hero.range * 0.72, 0, Math.PI * 2);
         ctx.stroke();
+        ctx.globalAlpha = 1;
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        ctx.strokeStyle = PALETTE.foam;
+        ctx.lineWidth = 1;
+        ctx.stroke();
         ctx.restore();
+    } else if (p.swing > 0) {
+        Sprites.drawSwing(ctx, sx, sy, p.facing, hero.range, color, p.swing);
+        Sprites.drawBlade(ctx, sx, sy, p.facing, hero.range, color, 4);
     } else {
-        const len = p.swing > 0 ? hero.range : 16;
-        Sprites.drawBlade(ctx, sx, sy, p.facing, len, color, p.swing > 0 ? 4 : 3);
+        Sprites.drawBlade(ctx, sx, sy, p.facing, 16, color, 3);
     }
     Sprites.draw(ctx, Sprites.heroKey(p.heroId, p.facing), sx, sy, Sprites.heroFlip(p.facing));
 }
@@ -429,6 +445,15 @@ function drawCompanion(ctx, game) {
     const cam = game.camera;
     const sx = c.x - cam.x;
     const sy = c.y - cam.y + Math.sin((c.bob || 0) * 6) * 1;
+    const glow = c.echoT > 0 ? 0.85 : 0.4;
+    ctx.save();
+    ctx.globalAlpha = glow;
+    ctx.strokeStyle = PALETTE.gold;
+    ctx.lineWidth = c.echoT > 0 ? 3 : 2;
+    ctx.beginPath();
+    ctx.arc(sx, sy, c.echoT > 0 ? 14 + (0.55 - c.echoT) * 10 : 12, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
     shadow(ctx, sx, sy);
     Sprites.draw(ctx, "little", sx, sy, c.facing.x < 0);
 }
@@ -438,12 +463,16 @@ function drawEnemy(ctx, game, e) {
     const sx = e.x - cam.x;
     const sy = e.y - cam.y;
     shadow(ctx, sx, sy);
-    ctx.save();
-    if (e.hitFlash > 0) ctx.globalAlpha = 0.65;
     const key = e.kind === "boss" ? "boss-" + e.bossId : "guard";
     const flip = e.facing.x < 0;
     Sprites.draw(ctx, key, sx, sy, flip);
-    ctx.restore();
+    if (e.hitFlash > 0) {
+        ctx.save();
+        ctx.globalCompositeOperation = "lighter";
+        ctx.globalAlpha = 0.85;
+        Sprites.draw(ctx, key, sx, sy, flip);
+        ctx.restore();
+    }
     if (e.kind === "boss") {
         const w = 36;
         const pct = Math.max(0, e.hp / e.maxHp);
@@ -462,15 +491,31 @@ function drawShots(ctx, game) {
         const y = s.y - cam.y - (s.kind === "rock" ? Math.sin(s.hop * 10) * 8 : 0);
         ctx.fillStyle = s.color;
         if (s.kind === "saber") {
-            ctx.fillRect(x - 2, y - 6, 4, 12);
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate((s.spin || 0));
+            ctx.fillStyle = s.color;
+            ctx.globalAlpha = 0.35;
+            ctx.fillRect(-4, -10, 8, 20);
+            ctx.globalAlpha = 1;
+            ctx.fillRect(-2, -8, 4, 16);
+            ctx.fillStyle = PALETTE.foam;
+            ctx.fillRect(-1, -6, 2, 12);
+            ctx.restore();
         } else if (s.kind === "bow") {
             ctx.fillStyle = PALETTE.gold;
             ctx.fillRect(x - 3, y - 3, 6, 6);
         } else if (s.kind === "rock") {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate((s.hop || 0) * 9);
             ctx.fillStyle = PALETTE.panel;
-            ctx.fillRect(x - 4, y - 4, 8, 8);
+            ctx.fillRect(-5, -4, 10, 8);
             ctx.fillStyle = PALETTE.ink;
-            ctx.fillRect(x - 2, y - 2, 3, 3);
+            ctx.fillRect(-2, -2, 3, 3);
+            ctx.fillStyle = PALETTE.gold;
+            ctx.fillRect(1, -3, 2, 2);
+            ctx.restore();
         } else {
             ctx.fillStyle = PALETTE.foam;
             ctx.fillRect(x - 2, y - 2, 4, 4);
@@ -487,12 +532,31 @@ function drawFx(ctx, game) {
         ctx.strokeStyle = f.color;
         ctx.fillStyle = f.color;
         if (f.kind === "spark") ctx.fillRect(f.x - cam.x, f.y - cam.y, 2, 2);
-        else if (f.kind === "bolt") {
-            ctx.lineWidth = 2;
+        else if (f.kind === "bolt" && f.pts && f.pts.length) {
+            ctx.lineWidth = 3;
             ctx.beginPath();
-            ctx.moveTo(f.x1 - cam.x, f.y1 - cam.y);
-            ctx.lineTo(f.x2 - cam.x, f.y2 - cam.y);
+            ctx.moveTo(f.pts[0].x - cam.x, f.pts[0].y - cam.y);
+            for (let p = 1; p < f.pts.length; p++) ctx.lineTo(f.pts[p].x - cam.x, f.pts[p].y - cam.y);
             ctx.stroke();
+            ctx.strokeStyle = PALETTE.foam;
+            ctx.lineWidth = 1;
+            ctx.stroke();
+        } else if (f.kind === "push") {
+            const grow = 1 - Math.max(0, f.life) / 0.2;
+            const len = 16 + grow * (f.range || 80);
+            for (let n = -2; n <= 2; n++) {
+                const spread = n * 0.22;
+                const cs = Math.cos(spread);
+                const sn = Math.sin(spread);
+                const dx = f.dirx * cs - f.diry * sn;
+                const dy = f.dirx * sn + f.diry * cs;
+                ctx.strokeStyle = n === 0 ? PALETTE.foam : PALETTE.blue;
+                ctx.lineWidth = n === 0 ? 3 : 2;
+                ctx.beginPath();
+                ctx.moveTo(f.x - cam.x + dx * 8, f.y - cam.y + dy * 8);
+                ctx.lineTo(f.x - cam.x + dx * len, f.y - cam.y + dy * len);
+                ctx.stroke();
+            }
         } else if (f.kind === "ring") {
             ctx.lineWidth = 2;
             ctx.beginPath();
