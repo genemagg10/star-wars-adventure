@@ -48,6 +48,7 @@ const SaveSystem = {
             bossesDown: snapshot.bossesDown.slice(),
             resolved: Object.assign({}, snapshot.resolved || {}),
             won: !!snapshot.won,
+            dockTeachDone: !!snapshot.dockTeachDone,
         };
         try {
             localStorage.setItem(this.KEY, JSON.stringify(data));
