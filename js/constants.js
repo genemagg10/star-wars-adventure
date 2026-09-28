@@ -325,6 +325,26 @@ const GUARD_STATS = {
     range: 150,
 };
 
+// Trash Compactor clear beat, after Rock Toss is in hand. The two
+// stormtroopers are the whole clear: crates and chrome bolts are paint.
+// Full guard stats were a death loop under kid play (saber, Force Push,
+// Rock Toss), and a downed retry built both troopers again, so the
+// objective never stuck on "Leave the compactor." Rock Toss finishes one.
+// Force Push plus a saber finishes one. Shots are short and slow, and a
+// heart taken in this room makes both of them hold fire so they cannot chain.
+const TRASH_CLEAR = {
+    hp: 4,
+    speed: 34,
+    shot: 3.4,
+    range: 92,
+    sight: 132,
+    dmg: 1,
+    boltSpeed: 84,
+    aimJitter: 1.05,
+    breath: 2.6,
+    openHold: 2.2,
+};
+
 // Docking Ring only, until the north lock is taken and Phasma Hangar is entered.
 // One stormtrooper. Shots stay off until Force Push, then this trooper is the practice target.
 const DOCK_TEACH = {

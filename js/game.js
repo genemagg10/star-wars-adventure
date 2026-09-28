@@ -114,6 +114,12 @@ const Game = {
     won: false,
     sectorIndex: 0,
     dockTeachDone: false,
+    // Trash Compactor clear sticks once both stormtroopers are down, so a
+    // sludge heart on the way to the north lock does not rebuild the fight.
+    trashCleared: false,
+    trashBeatLive: false,
+    trashBreath: 0,
+    trashLeaveTold: false,
     sector: null,
     player: null,
     enemies: [],
@@ -431,6 +437,10 @@ const Game = {
         this.paused = false;
         this.frozen = false;
         this.dockTeachDone = false;
+        this.trashCleared = false;
+        this.trashBeatLive = false;
+        this.trashBreath = 0;
+        this.trashLeaveTold = false;
         UI.hideAll();
         this.enterSector(0);
         const hero = HEROES[heroId];
@@ -469,6 +479,7 @@ const Game = {
         const idx = clamp(data.sectorIndex || 0, 0, World.sectors.length - 1);
         // Older saves omit the flag. A deck past the Docking Ring already left the teach beat.
         this.dockTeachDone = data.dockTeachDone != null ? !!data.dockTeachDone : idx > 0;
+        this.trashCleared = !!data.trashCleared;
         this.enterSector(idx);
     },
 
@@ -486,6 +497,9 @@ const Game = {
         this.chase = null;
         this.tapNudge = null;
         this.lessonNear = 0;
+        this.trashBreath = 0;
+        this.trashBeatLive = false;
+        this.trashLeaveTold = false;
         this.shots = [];
         this.fx = [];
         this.numbers = [];
@@ -496,14 +510,21 @@ const Game = {
         const bossDown = !!(spec.bossId && this.bossesDown.indexOf(spec.bossId) >= 0);
         const missing = spec.bossId === "hooded" ? this.missingPowers() : [];
         if (!bossDown && missing.length === 0) {
-            const guardList = this.sector.guards;
-            const teachDock = spec.id === "dock" && !this.dockTeachDone;
-            // Hangar map bakes one G. This cap is the safety net if a stray marker lands in the list.
-            // The Docking Ring keeps one softer trooper until the hangar.
-            const guardCap = spec.id === "hangar" ? 1 : (teachDock ? 1 : guardList.length);
-            for (let i = 0; i < guardList.length && i < guardCap; i++) {
-                const g = guardList[i];
-                this.enemies.push(Entities.makeGuard(g.x, g.y, teachDock ? this.dockTeachOpts() : null));
+            const skipTrashGuards = spec.id === "trash" && this.trashCleared;
+            if (!skipTrashGuards) {
+                const guardList = this.sector.guards;
+                const teachDock = spec.id === "dock" && !this.dockTeachDone;
+                // Hangar map bakes one G. This cap is the safety net if a stray marker lands in the list.
+                // The Docking Ring keeps one softer trooper until the hangar.
+                const guardCap = spec.id === "hangar" ? 1 : (teachDock ? 1 : guardList.length);
+                const trashSoft = spec.id === "trash" && this.owns("rock");
+                for (let i = 0; i < guardList.length && i < guardCap; i++) {
+                    const g = guardList[i];
+                    const guard = Entities.makeGuard(g.x, g.y, teachDock ? this.dockTeachOpts() : null);
+                    if (trashSoft) Entities.applyTrashClear(guard, false);
+                    this.enemies.push(guard);
+                }
+                if (spec.id === "trash" && this.enemies.length) this.trashBeatLive = true;
             }
             if (this.sector.boss) {
                 this.enemies.push(Entities.makeBoss(spec.bossId, this.sector.boss.x, this.sector.boss.y, this.powers));
@@ -574,6 +595,9 @@ const Game = {
             this.objective = s.bossGoal || "Defeat the boss";
             return;
         }
+        // A finished compactor beat stays finished. Living stormtroopers are
+        // the only clear; floating crates and bolts are not foes.
+        this.stampTrashClear();
         if (this.chestBlocksExit()) {
             this.objective = s.chestGoal || "Open the salvage chest";
             return;
@@ -588,6 +612,34 @@ const Game = {
         }
         if (s.exit) this.objective = s.exitGoal || "Reach the north lock";
         else this.objective = s.clearGoal || "Hold the deck";
+        this.noteTrashLeave();
+    },
+
+    stampTrashClear() {
+        const s = this.sector;
+        if (!s || s.id !== "trash" || this.trashCleared || !this.trashBeatLive) return;
+        if (this.enemies.some((e) => e.alive && e.kind === "guard")) return;
+        this.trashCleared = true;
+        this.trashBeatLive = false;
+        this.save();
+    },
+
+    noteTrashLeave() {
+        const s = this.sector;
+        if (!s || s.id !== "trash" || !this.trashCleared || !this.owns("rock") || this.trashLeaveTold) return;
+        if (this.objective !== (s.exitGoal || "Leave the compactor")) return;
+        this.trashLeaveTold = true;
+        this.toast("The north lock is open");
+        this.toastT = 2.4;
+    },
+
+    armTrashClear() {
+        if (!this.sector || this.sector.id !== "trash") return;
+        const list = this.enemies || [];
+        for (let i = 0; i < list.length; i++) {
+            if (list[i].alive && list[i].kind === "guard") Entities.applyTrashClear(list[i], true);
+        }
+        this.refreshObjective();
     },
 
     chestBlocksExit() {
@@ -766,6 +818,7 @@ const Game = {
         if (fresh) this.powers.push(id);
         this.activePower = id;
         this.lastPower = id;
+        if (fresh && id === "rock") this.armTrashClear();
         if (fresh && this.player) {
             const color = id === "lightning" ? PALETTE.lightning
                 : id === "rock" ? PALETTE.gold
@@ -1439,6 +1492,7 @@ const Game = {
             resolved: this.resolved,
             won: this.won,
             dockTeachDone: !!this.dockTeachDone,
+            trashCleared: !!this.trashCleared,
         };
     },
 

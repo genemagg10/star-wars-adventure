@@ -132,6 +132,12 @@ const Combat = {
         if (p.hp > 0 && vaderHoldBreath(game) && p.invuln < VADER_CLEAR.clipInvuln) {
             p.invuln = VADER_CLEAR.clipInvuln;
         }
+        // Compactor clear only. A heart from a bolt or the sludge should not
+        // become a second bolt from the other stormtrooper.
+        if (p.hp > 0 && game.sector && game.sector.id === "trash" && game.owns("rock")) {
+            if (p.invuln < TRASH_CLEAR.breath) p.invuln = TRASH_CLEAR.breath;
+            game.trashBreath = Math.max(game.trashBreath || 0, TRASH_CLEAR.breath);
+        }
         const away = normalize(p.x - fromX, p.y - fromY);
         p.kx = away.x * 180;
         p.ky = away.y * 180;

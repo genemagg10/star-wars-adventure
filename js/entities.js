@@ -680,7 +680,9 @@ function updateGuard(e, game, dt) {
     const jitter = e.aimJitter != null ? e.aimJitter : 0.4;
     const lessonSafe = e.avoidR && dist(p.x, p.y, e.avoidX, e.avoidY) < e.avoidR;
     // holdFire: Docking Ring teach beat, no bolts until Force Push is learned.
-    if (!e.holdFire && e.timer <= 0 && d < range && !lessonSafe && !lineBlocked(sight, e.x, e.y, p.x, p.y)) {
+    // trashClear + trashBreath: compactor pair cannot chain a heart.
+    const trashHold = e.trashClear && game.trashBreath > 0;
+    if (!e.holdFire && !trashHold && e.timer <= 0 && d < range && !lessonSafe && !lineBlocked(sight, e.x, e.y, p.x, p.y)) {
         e.timer = gap;
         const aim = Math.atan2(dir.y, dir.x) + (Math.random() - 0.5) * jitter;
         game.shots.push({
@@ -766,6 +768,24 @@ const Entities = {
         };
     },
 
+    // Caps a stormtrooper into the compactor clear beat. opening is the
+    // moment Rock Toss is taken, so the first bolt waits out the card.
+    applyTrashClear(e, opening) {
+        if (!e || e.kind !== "guard") return;
+        e.trashClear = true;
+        e.maxHp = TRASH_CLEAR.hp;
+        if (e.hp > e.maxHp) e.hp = e.maxHp;
+        e.speed = TRASH_CLEAR.speed;
+        e.shot = TRASH_CLEAR.shot;
+        e.range = TRASH_CLEAR.range;
+        e.sight = TRASH_CLEAR.sight;
+        e.shotDmg = TRASH_CLEAR.dmg;
+        e.boltSpeed = TRASH_CLEAR.boltSpeed;
+        e.aimJitter = TRASH_CLEAR.aimJitter;
+        if (opening) e.timer = TRASH_CLEAR.openHold;
+        else if (e.timer < 0.45) e.timer = 0.45;
+    },
+
     makeBoss(bossId, x, y, powers) {
         const stats = BOSS_STATS[bossId];
         const owned = (powers || []).filter((id) => POWERS[id]);
@@ -812,6 +832,7 @@ const Entities = {
             Combat.updateFx(game, dt);
             return;
         }
+        if (game.trashBreath > 0) game.trashBreath = Math.max(0, game.trashBreath - dt);
         for (let i = 0; i < game.enemies.length; i++) {
             const e = game.enemies[i];
             if (!e.alive) continue;
