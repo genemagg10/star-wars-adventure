@@ -160,7 +160,8 @@ const FLOOR_CYCLE = {
     // Open hull between the baked "=" runway rows. Gold stripes stay on those cells.
     hangar: ["floor-hangar", "floor-hangar-b", "floor-hangar-c"],
     conduit: ["floor-u", "floor", "floor-b"],
-    trash: ["floor-c", "floor", "floor-b"],
+    // Dry grit twice, then a wet patch and a loose board.
+    trash: ["floor-trash", "floor-trash", "floor-trash-b", "floor-trash-c"],
     gallery: ["floor-y", "floor", "floor-b"],
     fallen: ["floor-c", "floor-b", "floor"],
     core: ["floor-u", "floor", "floor-b"],
@@ -256,6 +257,7 @@ const World = {
     tileSprite(sector, ch, tx, ty, game) {
         const dock = sector.id === "dock";
         const hangar = sector.id === "hangar";
+        const trash = sector.id === "trash";
         if (ch === "#") {
             if (dock) {
                 const port = ((tx * 3 + ty * 5) % 7) === 0;
@@ -263,20 +265,32 @@ const World = {
                 return Math.floor(game.time * 2 + tx + ty) % 2 === 0 ? "wall-dock-port" : "wall-dock-port-b";
             }
             if (hangar) return this.hangarWallKey(tx, ty, sector, game);
+            if (trash) return this.trashWallKey(tx, ty, sector);
             return "wall";
         }
         if (ch === "+") return dock ? "pillar-dock" : "pillar";
-        if (ch === "~") return Math.floor(game.time * 3) % 2 === 0 ? "hazard" : "hazard2";
-        if (ch === "D") return game.secretOpen ? "door-open" : "door";
+        if (ch === "~") {
+            const on = Math.floor(game.time * 3) % 2 === 0;
+            if (trash) return on ? "hazard-trash" : "hazard-trash-b";
+            return on ? "hazard" : "hazard2";
+        }
+        if (ch === "D") {
+            if (trash) return game.secretOpen ? "door-trash-open" : "door-trash";
+            return game.secretOpen ? "door-open" : "door";
+        }
         if (ch === "E") {
             if (dock) return game.exitOpen() ? "airlock-open" : "airlock";
             if (hangar) return game.exitOpen() ? "hangar-exit-open" : "hangar-exit";
             return game.exitOpen() ? "exit-open" : "exit";
         }
-        if (ch === "C") return game.owns("rock") ? "floor" : "chest";
+        if (ch === "C") {
+            if (trash) return game.owns("rock") ? "floor-trash" : "chest-trash";
+            return game.owns("rock") ? "floor" : "chest";
+        }
         if (ch === "=") {
             if (dock) return Math.floor(game.time * 3 + tx) % 2 === 0 ? "glow" : "glow-b";
             if (hangar) return Math.floor(game.time * 3 + tx) % 2 === 0 ? "hangar-stripe" : "hangar-stripe-b";
+            if (trash) return Math.floor(game.time * 3 + tx) % 2 === 0 ? "trash-track" : "trash-track-b";
             return Math.floor(game.time * 4 + tx) % 2 === 0 ? "stripe" : "stripe-b";
         }
         if (ch === "O") {
@@ -308,6 +322,21 @@ const World = {
         const lamp = ((tx * 3 + ty * 5) % 7) === 0;
         if (!lamp) return "wall-hangar-bay";
         return Math.floor(game.time * 2 + tx + ty) % 2 === 0 ? "wall-hangar-bay" : "wall-hangar-bay-b";
+    },
+
+    // Horizontal runs keep the jaw across the tile. Vertical runs turn it. Corners are the joint.
+    trashWallKey(tx, ty, sector) {
+        const tiles = sector.tiles;
+        const row = tiles[ty];
+        const left = row[tx - 1] === "#";
+        const right = row[tx + 1] === "#";
+        const up = tiles[ty - 1] && tiles[ty - 1][tx] === "#";
+        const down = tiles[ty + 1] && tiles[ty + 1][tx] === "#";
+        const horiz = left || right;
+        const vert = up || down;
+        if (vert && !horiz) return "wall-trash-v";
+        if (horiz && !vert) return "wall-trash";
+        return "wall-trash-c";
     },
 
     draw(ctx, sector, camera, game) {
@@ -409,7 +438,7 @@ const World = {
             { x: 24, y: 19, key: "junk-b", ph: 1.1 },
             { x: 33, y: 15, key: "junk", ph: 2.2 },
             { x: 40, y: 18, key: "junk-b", ph: 0.4 },
-            { x: 27, y: 21, key: "junk", ph: 1.7 },
+            { x: 27, y: 21, key: "junk-c", ph: 1.7 },
             { x: 36, y: 23, key: "junk-b", ph: 2.6 },
             { x: 46, y: 20, key: "junk", ph: 0.8 },
         ];
