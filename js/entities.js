@@ -221,7 +221,8 @@ function updateGuard(e, game, dt) {
     const boltSpd = e.boltSpeed != null ? e.boltSpeed : 118;
     const jitter = e.aimJitter != null ? e.aimJitter : 0.4;
     const lessonSafe = e.avoidR && dist(p.x, p.y, e.avoidX, e.avoidY) < e.avoidR;
-    if (e.timer <= 0 && d < range && !lessonSafe && !lineBlocked(sight, e.x, e.y, p.x, p.y)) {
+    // holdFire: Docking Ring teach beat, no bolts until Force Push is learned.
+    if (!e.holdFire && e.timer <= 0 && d < range && !lessonSafe && !lineBlocked(sight, e.x, e.y, p.x, p.y)) {
         e.timer = gap;
         const aim = Math.atan2(dir.y, dir.x) + (Math.random() - 0.5) * jitter;
         game.shots.push({
@@ -296,6 +297,7 @@ const Entities = {
             avoidX: o.avoidX || 0,
             avoidY: o.avoidY || 0,
             avoidR: o.avoidR || 0,
+            holdFire: !!o.holdFire,
             facing: { x: 0, y: 1 },
             timer: Math.random() * 1.1,
             alive: true,

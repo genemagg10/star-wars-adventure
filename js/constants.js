@@ -124,8 +124,8 @@ const GUARD_STATS = {
     range: 150,
 };
 
-// Docking Ring only, and only until Force Push is learned.
-// One stormtrooper, easier to clear on the way to the blue terminal.
+// Docking Ring only, until the north lock is taken and Phasma Hangar is entered.
+// One stormtrooper. Shots stay off until Force Push, then this trooper is the practice target.
 const DOCK_TEACH = {
     hp: 4,
     speed: 36,

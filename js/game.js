@@ -108,6 +108,7 @@ const Game = {
     resolved: {},
     won: false,
     sectorIndex: 0,
+    dockTeachDone: false,
     sector: null,
     player: null,
     enemies: [],
@@ -391,6 +392,7 @@ const Game = {
         this.won = false;
         this.paused = false;
         this.frozen = false;
+        this.dockTeachDone = false;
         UI.hideAll();
         this.enterSector(0);
         const hero = HEROES[heroId];
@@ -423,12 +425,17 @@ const Game = {
             return;
         }
         const idx = clamp(data.sectorIndex || 0, 0, World.sectors.length - 1);
+        // Older saves omit the flag. A deck past the Docking Ring already left the teach beat.
+        this.dockTeachDone = data.dockTeachDone != null ? !!data.dockTeachDone : idx > 0;
         this.enterSector(idx);
     },
 
     enterSector(index) {
         this.sectorIndex = index;
         const spec = World.sectors[index];
+        // The teach beat ends when the north lock is taken and Phasma Hangar (or any later deck) is entered.
+        // Owning Force Push does not end it, so a death on the Docking Ring stays soft.
+        if (spec.id !== "dock") this.dockTeachDone = true;
         this.sector = World.bake(spec);
         this.secretOpen = false;
         this.hazardT = 0.4;
@@ -448,8 +455,8 @@ const Game = {
         const missing = spec.bossId === "hooded" ? this.missingPowers() : [];
         if (!bossDown && missing.length === 0) {
             const guardList = this.sector.guards;
-            const teachDock = spec.id === "dock" && !this.owns("push");
-            // Hangar stays at one add. The Docking Ring teaches with one softer trooper until Force Push.
+            const teachDock = spec.id === "dock" && !this.dockTeachDone;
+            // Hangar stays at one add. The Docking Ring keeps one softer trooper until the hangar.
             const guardCap = spec.id === "hangar" ? 1 : (teachDock ? 1 : guardList.length);
             for (let i = 0; i < guardList.length && i < guardCap; i++) {
                 const g = guardList[i];
@@ -559,7 +566,16 @@ const Game = {
             avoidX: lesson ? lesson.x : 0,
             avoidY: lesson ? lesson.y : 0,
             avoidR: lesson ? DOCK_TEACH.avoid : 0,
+            holdFire: !this.owns("push"),
         };
+    },
+
+    releaseDockDummy() {
+        if (this.dockTeachDone) return;
+        const list = this.enemies || [];
+        for (let i = 0; i < list.length; i++) {
+            if (list[i].kind === "guard") list[i].holdFire = false;
+        }
     },
 
     exitOpen() {
@@ -683,6 +699,7 @@ const Game = {
     teachPush() {
         if (this.owns("push") || this.frozen) return;
         this.grantPower("push");
+        this.releaseDockDummy();
         this.save();
         SoundSystem.unlock();
         SoundSystem.learned();
@@ -691,7 +708,7 @@ const Game = {
             title: "Force Push",
             loud: true,
             powerDrop: true,
-            body: "The blue terminal teaches Force Push. Press 1, tap gem 1, or hold Power. A short tap shoves whoever is in front of you. Try it on the stormtroopers, then go meet Captain Phasma.",
+            body: "The blue terminal teaches Force Push. Press 1, tap gem 1, or hold Power. A short tap shoves whoever is in front of you. Try it on the stormtrooper, then go meet Captain Phasma.",
             buttons: [{ label: "Got it", onClick: () => this.closeCard() }],
         });
         this.refreshObjective();
@@ -1294,6 +1311,7 @@ const Game = {
             bossesDown: this.bossesDown,
             resolved: this.resolved,
             won: this.won,
+            dockTeachDone: !!this.dockTeachDone,
         };
     },
 
