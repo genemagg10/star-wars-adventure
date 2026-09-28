@@ -36,6 +36,10 @@ const PALETTE = {
     hair: "#F2D48A",
     hairDeep: "#C9A15A",
     stripe: "#F0C040",
+    // Compactor grit. Three values so wet patches and crate shade read.
+    junk: "#8B7355",
+    junkDeep: "#5C4A36",
+    junkLite: "#C4A574",
     // Rose chrome for enemy blades only. Never a player saber, never a danger telegraph.
     foeBlade: "#D46A78",
 };
