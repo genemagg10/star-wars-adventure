@@ -37,8 +37,15 @@ function startTelegraph(e, game) {
     e.state = "telegraph";
     const face = { x: e.facing.x, y: e.facing.y };
     if (e.bossId === "chrome") {
-        e.timer = 1.25;
-        e.telegraph = { kind: "lane", dir: face, len: 148, width: 26, color: PALETTE.foam };
+        const opening = !!e.intro;
+        e.timer = opening ? PHASMA_OPEN.telegraph : 1.25;
+        e.telegraph = {
+            kind: "lane",
+            dir: face,
+            len: 148,
+            width: opening ? PHASMA_OPEN.laneWidth : 26,
+            color: PALETTE.foam,
+        };
         SoundSystem.swing();
     } else if (e.bossId === "shadow") {
         e.timer = 0.72;
@@ -69,7 +76,11 @@ function commitBossAttack(e, game) {
     const player = game.player;
     const face = e.facing || { x: 1, y: 0 };
     if (e.bossId === "chrome") {
-        e.dash = { x: face.x * 140, y: face.y * 140, t: 0.28 };
+        const opening = !!e.intro;
+        e.intro = false;
+        const dash = opening ? PHASMA_OPEN.dash : 140;
+        const dashT = opening ? PHASMA_OPEN.dashTime : 0.28;
+        e.dash = { x: face.x * dash, y: face.y * dash, t: dashT };
     } else if (e.bossId === "shadow") {
         if (e.blink && !game.circleBlocked(e.blink.x, e.blink.y, e.r)) {
             e.x = e.blink.x;
@@ -133,6 +144,8 @@ function updateBoss(e, game, dt) {
             speed *= 0.35;
         } else if (e.bossId === "dark") {
             speed *= 0.58;
+        } else if (e.bossId === "chrome" && e.intro) {
+            speed *= PHASMA_OPEN.approach;
         }
         slide(e, (mx * speed + e.kx) * dt, (my * speed + e.ky) * dt, game);
         e.timer -= dt;
@@ -324,7 +337,8 @@ const Entities = {
             gap: stats.gap,
             facing: { x: 0, y: 1 },
             state: "approach",
-            timer: 0.7,
+            timer: bossId === "chrome" ? PHASMA_OPEN.delay : 0.7,
+            intro: bossId === "chrome",
             telegraph: null,
             dash: null,
             blink: null,
@@ -489,7 +503,8 @@ const Entities = {
         const cam = game.camera;
         const sector = game.sector;
         for (let i = 0; i < game.enemies.length; i++) drawTelegraph(ctx, game.enemies[i], cam);
-        if (sector && sector.sticker && !game.sticker) {
+        if (game.botDance) drawBotDance(ctx, game);
+        else if (sector && sector.sticker && !game.sticker) {
             Sprites.draw(ctx, "bot", sector.sticker.x - cam.x, sector.sticker.y - cam.y, false);
         }
         const drawables = [];
@@ -519,6 +534,64 @@ const Entities = {
     },
 };
 
+function drawBotDance(ctx, game) {
+    const d = game.botDance;
+    if (!d) return;
+    const cam = game.camera;
+    const ground = d.y - cam.y;
+    const hop = Math.abs(Math.sin(game.time * 11)) * 16;
+    const sx = d.x - cam.x;
+    const sy = ground - hop;
+    shadow(ctx, sx, ground);
+    const sprite = Sprites.cache.bot;
+    if (sprite) {
+        const pulse = 1 + hop / 40;
+        const flip = Math.sin(game.time * 5) < 0 ? -1 : 1;
+        ctx.save();
+        ctx.translate(Math.round(sx), Math.round(sy));
+        ctx.rotate(Math.sin(game.time * 7) * 0.42);
+        ctx.scale(flip * pulse, pulse);
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(sprite, Math.round(-sprite.width / 2), Math.round(-sprite.height / 2));
+        ctx.restore();
+    }
+    ctx.fillStyle = PALETTE.gold;
+    for (let i = 0; i < 6; i++) {
+        const a = game.time * 9 + i * 1.05;
+        ctx.fillRect(sx + Math.cos(a) * 18 - 1, ground - Math.abs(Math.sin(a)) * 22, 3, 3);
+    }
+}
+
+function drawBossHp(ctx, e, sx, sy) {
+    const w = e.bossId === "chrome" ? 72 : 52;
+    const h = e.bossId === "chrome" ? 8 : 6;
+    const pct = Math.max(0, Math.min(1, e.hp / (e.maxHp || 1)));
+    const x = sx - w / 2;
+    const y = sy - (e.bossId === "chrome" ? 42 : 34);
+    ctx.fillStyle = PALETTE.ink;
+    ctx.fillRect(x - 2, y - 2, w + 4, h + 4);
+    ctx.strokeStyle = PALETTE.foam;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x - 2.5, y - 2.5, w + 4, h + 4);
+    ctx.fillStyle = PALETTE.hull;
+    ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = e.hitFlash > 0 ? PALETTE.foam : (pct > 0.3 ? PALETTE.gold : PALETTE.danger);
+    ctx.fillRect(x, y, w * pct, h);
+    if (e.bossId === "chrome") {
+        ctx.save();
+        ctx.font = "bold 12px ui-monospace, monospace";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "bottom";
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = PALETTE.ink;
+        ctx.fillStyle = PALETTE.foam;
+        const label = Math.max(0, Math.ceil(e.hp)) + " / " + e.maxHp;
+        ctx.strokeText(label, sx, y - 2);
+        ctx.fillText(label, sx, y - 2);
+        ctx.restore();
+    }
+}
+
 function drawTelegraph(ctx, e, cam) {
     const t = e.telegraph;
     if (!t) return;
@@ -538,7 +611,9 @@ function drawTelegraph(ctx, e, cam) {
     } else if (t.kind === "lane" && t.dir) {
         ctx.translate(x, y);
         ctx.rotate(Math.atan2(t.dir.y, t.dir.x));
-        ctx.globalAlpha = 0.35;
+        const opening = !!e.intro;
+        ctx.lineWidth = opening ? 3 : 2;
+        ctx.globalAlpha = opening ? 0.62 : 0.35;
         ctx.fillRect(8, -t.width / 2, t.len, t.width);
         ctx.globalAlpha = 1;
         ctx.strokeRect(8, -t.width / 2, t.len, t.width);
@@ -740,14 +815,7 @@ function drawEnemy(ctx, game, e) {
         Sprites.draw(ctx, key, sx, sy, flip);
         ctx.restore();
     }
-    if (e.kind === "boss") {
-        const w = 36;
-        const pct = Math.max(0, e.hp / e.maxHp);
-        ctx.fillStyle = PALETTE.ink;
-        ctx.fillRect(sx - w / 2, sy - 32, w, 4);
-        ctx.fillStyle = PALETTE.danger;
-        ctx.fillRect(sx - w / 2, sy - 32, w * pct, 4);
-    }
+    if (e.kind === "boss") drawBossHp(ctx, e, sx, sy);
 }
 
 function drawShots(ctx, game) {

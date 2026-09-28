@@ -65,6 +65,14 @@ const UI = {
         this.bindMute();
         this.buildHeroes();
         this.buildColors();
+        const crawl = document.getElementById("screen-crawl");
+        if (crawl) {
+            crawl.addEventListener("pointerdown", (e) => {
+                if (crawl.classList.contains("hidden")) return;
+                e.preventDefault();
+                Game.finishCrawl();
+            });
+        }
     },
 
     bindMute() {
@@ -118,6 +126,7 @@ const UI = {
             btn.type = "button";
             btn.className = "swatch";
             btn.innerHTML = '<i></i><span></span>';
+            btn.setAttribute("data-saber", saber.id);
             btn.querySelector("i").style.background = saber.color;
             btn.querySelector("span").textContent = saber.name;
             btn.addEventListener("click", () => {
@@ -153,6 +162,7 @@ const UI = {
         for (let i = 0; i < screens.length; i++) screens[i].classList.add("hidden");
         this.cardOpen = false;
         this.quickRetry = false;
+        document.body.classList.remove("crawling");
     },
 
     showTitle() {
@@ -169,7 +179,21 @@ const UI = {
 
     showColor() {
         const name = HEROES[Game.pendingHero] ? HEROES[Game.pendingHero].name : "Hero";
-        document.getElementById("color-who").textContent = name + " — choose a lightsaber color.";
+        const prism = Game.prismSaber;
+        const who = document.getElementById("color-who");
+        who.textContent = prism
+            ? name + " — choose a lightsaber color. The saber prism still holds " + saberById(prism).name + "."
+            : name + " — choose a lightsaber color.";
+        const swatches = document.querySelectorAll("#color-choices .swatch");
+        for (let i = 0; i < swatches.length; i++) {
+            const btn = swatches[i];
+            const id = btn.getAttribute("data-saber");
+            const saber = saberById(id);
+            const span = btn.querySelector("span");
+            const held = !!prism && id === prism;
+            btn.classList.toggle("is-prism", held);
+            if (span) span.textContent = saber.name + (held ? " · prism" : "");
+        }
         this.show("screen-color");
     },
 
@@ -200,6 +224,26 @@ const UI = {
         } else {
             line.textContent = "";
             line.classList.add("hidden");
+        }
+        const time = document.getElementById("card-time");
+        if (time) {
+            if (opts.time) {
+                time.textContent = opts.time;
+                time.classList.remove("hidden");
+            } else {
+                time.textContent = "";
+                time.classList.add("hidden");
+            }
+        }
+        const tease = document.getElementById("card-tease");
+        if (tease) {
+            if (opts.tease) {
+                tease.textContent = opts.tease;
+                tease.classList.remove("hidden");
+            } else {
+                tease.textContent = "";
+                tease.classList.add("hidden");
+            }
         }
         const notes = document.getElementById("card-notes");
         notes.innerHTML = "";
@@ -271,6 +315,28 @@ const UI = {
         }
     },
 
+    showCrawl(name, lineA, lineB) {
+        document.getElementById("crawl-kicker").textContent = name || "";
+        document.getElementById("crawl-a").textContent = lineA || "";
+        const b = document.getElementById("crawl-b");
+        b.textContent = lineB || "";
+        b.style.display = lineB ? "" : "none";
+        const tilt = document.querySelector(".crawl-tilt");
+        if (tilt) {
+            tilt.style.animation = "none";
+            void tilt.offsetWidth;
+            tilt.style.animation = "";
+        }
+        document.body.classList.add("crawling");
+        this.show("screen-crawl");
+    },
+
+    hideCrawl() {
+        const el = document.getElementById("screen-crawl");
+        if (el) el.classList.add("hidden");
+        document.body.classList.remove("crawling");
+    },
+
     hideCard() {
         this.cardOpen = false;
         this.quickRetry = false;
@@ -331,6 +397,7 @@ const UI = {
         ctx.fillText(text, CANVAS_W / 2, 26);
 
         this.drawPowerGems(ctx, game);
+        this.drawBossPlate(ctx, game);
 
         if (game.toastT > 0 && game.toastText) {
             ctx.fillStyle = PALETTE.gold;
@@ -382,6 +449,43 @@ const UI = {
             ctx.fillStyle = PALETTE.foam;
             ctx.fillRect(x - barW / 2, barY, barW * ready, 3);
         }
+    },
+
+    drawBossPlate(ctx, game) {
+        if (game.mode !== "play" || !game.enemies) return;
+        let boss = null;
+        for (let i = 0; i < game.enemies.length; i++) {
+            const e = game.enemies[i];
+            if (e.alive && e.kind === "boss") boss = e;
+        }
+        if (!boss) return;
+        const max = boss.maxHp || 1;
+        const hp = Math.max(0, Math.ceil(boss.hp));
+        const pct = Math.max(0, Math.min(1, boss.hp / max));
+        const name = boss.name || "Boss";
+        ctx.font = "bold 16px ui-monospace, monospace";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        const label = name + "   " + hp + " / " + max;
+        const textW = Math.ceil(ctx.measureText(label).width);
+        const barW = Math.max(248, textW + 36);
+        const x = Math.round(CANVAS_W / 2 - barW / 2);
+        const y = 94;
+        ctx.fillStyle = "rgba(14, 20, 36, 0.92)";
+        ctx.fillRect(x - 8, y - 6, barW + 16, 46);
+        ctx.strokeStyle = PALETTE.gold;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x - 7.5, y - 5.5, barW + 15, 45);
+        ctx.fillStyle = PALETTE.foam;
+        ctx.fillText(label, CANVAS_W / 2, y + 8);
+        const trackY = y + 22;
+        ctx.fillStyle = PALETTE.hull;
+        ctx.fillRect(x, trackY, barW, 12);
+        ctx.fillStyle = boss.hitFlash > 0 ? PALETTE.foam : (pct > 0.3 ? PALETTE.gold : PALETTE.danger);
+        ctx.fillRect(x, trackY, Math.max(pct > 0 ? 4 : 0, barW * pct), 12);
+        ctx.strokeStyle = PALETTE.foam;
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x + 0.5, trackY + 0.5, barW - 1, 11);
     },
 };
 

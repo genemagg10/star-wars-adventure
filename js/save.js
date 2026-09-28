@@ -44,6 +44,8 @@ const SaveSystem = {
             activePower: snapshot.activePower,
             companionJoined: !!snapshot.companionJoined,
             sticker: !!snapshot.sticker,
+            runMs: snapshot.runMs || 0,
+            clearMs: snapshot.clearMs != null ? snapshot.clearMs : null,
             achievements: snapshot.achievements.slice(),
             bossesDown: snapshot.bossesDown.slice(),
             resolved: Object.assign({}, snapshot.resolved || {}),

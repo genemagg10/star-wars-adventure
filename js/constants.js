@@ -112,6 +112,44 @@ const SAVE_PREFIX = "starStationAdventure.";
 
 const WIN_LINE = "Part Two coming soon!";
 
+// Two lines each. Shown once, on the way into that deck. Tap or Space skips.
+const DECK_CRAWLS = {
+    hangar: [
+        "The north lock sighs open.",
+        "Captain Phasma holds the hangar.",
+    ],
+    conduit: [
+        "A spinning blade cuts the dark.",
+        "The Inquisitor waits in the conduit.",
+    ],
+    gallery: [
+        "Orange light fills the throne.",
+        "Darth Vader stands his ground.",
+    ],
+    trash: [
+        "The compactor walls creep closer.",
+        "Something small sleeps behind a hatch.",
+    ],
+    fallen: [
+        "A cracked saber hums in the hall.",
+        "Kylo Ren blocks the next deck.",
+    ],
+    core: [
+        "The core burns white ahead.",
+        "The Emperor is the last gate.",
+    ],
+};
+
+// First contact only. After the opening rush she uses the normal lane and dash.
+const PHASMA_OPEN = {
+    approach: 0.58,
+    delay: 2.05,
+    telegraph: 1.85,
+    laneWidth: 36,
+    dash: 82,
+    dashTime: 0.48,
+};
+
 const ACHIEVEMENTS = {
     saved: "Death Star Saved",
     sticker: "Chewbacca-bot Sticker",

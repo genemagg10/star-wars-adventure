@@ -103,6 +103,11 @@ const Game = {
     companion: null,
     companionCd: 8,
     sticker: false,
+    botDance: null,
+    crawl: null,
+    runMs: 0,
+    clearMs: null,
+    prismSaber: null,
     achievements: [],
     bossesDown: [],
     resolved: {},
@@ -135,6 +140,7 @@ const Game = {
         TouchControls.init();
         UI.init();
         SoundSystem.loadMute();
+        this.loadPrism();
         UI.paintMute();
         Sprites.build();
         UI.paintPortraits();
@@ -175,6 +181,12 @@ const Game = {
                 this.moveAt[e.code] = this.time;
                 this.tapNudge = null;
             }
+            if (this.crawl && (e.code === "Space" || e.code === "Enter" || e.code === "KeyE" || e.code === "Escape")) {
+                this.pressed[e.code] = false;
+                this.down[e.code] = false;
+                this.finishCrawl();
+                return;
+            }
             const retryKey = UI.quickRetry && (e.code === "Space" || e.code === "KeyF");
             if (UI.cardOpen && (e.code === "Enter" || e.code === "KeyE" || retryKey)) {
                 this.pressed[e.code] = false;
@@ -196,6 +208,7 @@ const Game = {
     },
 
     onEsc() {
+        if (this.crawl || this.botDance) return;
         if (UI.cardOpen) return;
         if (this.mode !== "play" && this.mode !== "chase") return;
         if (this.paused) this.resume();
@@ -210,6 +223,15 @@ const Game = {
         this.shake = Math.max(0, this.shake - dt);
         this.flash = Math.max(0, this.flash - dt);
         this.decayNudge(dt);
+        this.tickRun(dt);
+        if (this.crawl) {
+            this.crawl.t += dt;
+            if (this.crawl.t >= this.crawl.dur) this.finishCrawl();
+            TouchControls.sync(this);
+            this.draw();
+            requestAnimationFrame((t) => this.loop(t));
+            return;
+        }
         if (this.hitStop > 0) {
             this.hitStop -= dt;
             TouchControls.sync(this);
@@ -293,9 +315,21 @@ const Game = {
         }
     },
 
+    tickRun(dt) {
+        if (this.won || this.crawl || this.botDance) return;
+        if (this.mode !== "play" && this.mode !== "chase") return;
+        if (this.frozen || this.paused) return;
+        this.runMs += dt * 1000;
+    },
+
     updatePlay(dt, input) {
         if (this.toastT > 0) this.toastT -= dt;
         if (this.bannerT > 0) this.bannerT -= dt;
+        if (this.botDance) {
+            this.stepBotDance(dt);
+            this.focusCamera();
+            return;
+        }
         if (this.player && this.player.hp <= 0 && !UI.cardOpen) this.onPlayerDown();
         if (this.frozen || !this.player) return;
         Entities.updateAll(this, dt, input);
@@ -386,6 +420,10 @@ const Game = {
         this.companion = null;
         this.companionCd = 8;
         this.sticker = false;
+        this.botDance = null;
+        this.crawl = null;
+        this.runMs = 0;
+        this.clearMs = null;
         this.achievements = [];
         this.bossesDown = [];
         this.resolved = {};
@@ -412,6 +450,10 @@ const Game = {
         this.companionJoined = !!data.companionJoined;
         this.companionCd = 4;
         this.sticker = !!data.sticker;
+        this.botDance = null;
+        this.crawl = null;
+        this.runMs = data.runMs || 0;
+        this.clearMs = data.clearMs != null ? data.clearMs : null;
         this.achievements = (data.achievements || []).slice();
         this.bossesDown = (data.bossesDown || []).slice();
         this.resolved = Object.assign({}, data.resolved || {});
@@ -668,16 +710,7 @@ const Game = {
             return;
         }
         if (near(s.sticker, 44) && this.secretOpen && !this.sticker) {
-            this.sticker = true;
-            this.grantAchievement("sticker");
-            this.save();
-            SoundSystem.pickup();
-            this.openCard({
-                kicker: "Achievement",
-                title: ACHIEVEMENTS.sticker,
-                body: "The hatch hid a quiet Chewbacca-bot. You take the sticker. It does not wake.",
-                buttons: [{ label: "Leave it be", onClick: () => this.closeCard() }],
-            });
+            this.wakeChewieBot(s.sticker);
             return;
         }
         if (near(s.exit, 44)) {
@@ -900,12 +933,76 @@ const Game = {
 
     advance() {
         if (this.sectorIndex >= World.sectors.length - 1) return;
-        this.enterSector(this.sectorIndex + 1);
+        this.beginCrawl(this.sectorIndex + 1);
+    },
+
+    beginCrawl(index) {
+        const spec = World.sectors[index];
+        const lines = spec && DECK_CRAWLS[spec.id];
+        if (!spec || !lines) {
+            this.enterSector(index);
+            this.save();
+            return;
+        }
+        this.crawl = { index: index, t: 0, dur: 5.4 };
+        this.paused = false;
+        this.frozen = true;
+        UI.hidePause();
+        UI.showCrawl(spec.name, lines[0], lines[1] || "");
+    },
+
+    finishCrawl() {
+        if (!this.crawl) return;
+        const index = this.crawl.index;
+        this.crawl = null;
+        this.down.Space = false;
+        this.pressed.Space = false;
+        UI.hideCrawl();
+        this.frozen = false;
+        this.enterSector(index);
         this.save();
+    },
+
+    wakeChewieBot(at) {
+        if (this.sticker || this.botDance || !at) return;
+        this.sticker = true;
+        this.grantAchievement("sticker");
+        this.save();
+        this.botDance = { x: at.x, y: at.y, t: 2.6, burst: 0 };
+        Combat.confetti(this, at.x, at.y - 8);
+        this.fx.push({ kind: "ring", x: at.x, y: at.y, r: 8, life: 0.7, color: PALETTE.gold, grow: 180 });
+        this.fx.push({ kind: "ring", x: at.x, y: at.y, r: 4, life: 0.45, color: PALETTE.foam, grow: 120 });
+        SoundSystem.fanfare();
+        this.toast("The Chewbacca-bot wakes");
+        this.toastT = 2.4;
+    },
+
+    stepBotDance(dt) {
+        const d = this.botDance;
+        if (!d) return;
+        d.t -= dt;
+        d.burst -= dt;
+        if (d.burst <= 0) {
+            d.burst = 0.34;
+            Combat.burst(this, d.x + (Math.random() - 0.5) * 16, d.y - 10, PALETTE.gold);
+        }
+        Combat.updateFx(this, dt);
+        if (d.t > 0) return;
+        this.botDance = null;
+        SoundSystem.cheer();
+        this.openCard({
+            kicker: "Achievement",
+            title: ACHIEVEMENTS.sticker,
+            loud: true,
+            body: "The Chewbacca-bot wakes for one dance, then settles. The sticker is yours. It does not fight.",
+            buttons: [{ label: "Take the sticker", onClick: () => this.closeCard() }],
+        });
     },
 
     openWin() {
         this.won = true;
+        if (this.clearMs == null && (this.runMs || 0) >= 1000) this.clearMs = Math.round(this.runMs);
+        this.rememberPrism(this.saber);
         this.grantAchievement("saved");
         this.resolved.hooded = true;
         this.save();
@@ -925,11 +1022,14 @@ const Game = {
         }
         const hero = HEROES[this.heroId];
         const saber = saberById(this.saber);
+        const clearLabel = this.clearMs != null ? "Clear time " + formatClearTime(this.clearMs) : "";
         this.openCard({
             kicker: "Achievement",
             title: "Death Star Saved",
             body: (hero ? hero.name : "You") + " holds the core. " + (saber ? saber.name : "The") + " lightsaber stays lit.",
+            time: clearLabel,
             line: WIN_LINE,
+            tease: "New Game+ keeps this color in the saber prism.",
             loud: true,
             celebrate: {
                 hero: hero ? hero.name : "Hero",
@@ -1274,7 +1374,7 @@ const Game = {
     },
 
     pause() {
-        if (UI.cardOpen) return;
+        if (UI.cardOpen || this.crawl || this.botDance) return;
         if (this.mode !== "play" && this.mode !== "chase") return;
         this.paused = true;
         this.frozen = true;
@@ -1299,6 +1399,26 @@ const Game = {
         UI.showTitle();
     },
 
+    loadPrism() {
+        this.prismSaber = null;
+        try {
+            const id = localStorage.getItem(SAVE_PREFIX + "prism");
+            if (id && saberById(id).id === id) this.prismSaber = id;
+        } catch (err) {
+            this.prismSaber = null;
+        }
+    },
+
+    rememberPrism(id) {
+        if (!id || saberById(id).id !== id) return;
+        this.prismSaber = id;
+        try {
+            localStorage.setItem(SAVE_PREFIX + "prism", id);
+        } catch (err) {
+            // The tease still shows on this win card if storage is blocked.
+        }
+    },
+
     snapshot() {
         return {
             heroId: this.heroId,
@@ -1308,6 +1428,8 @@ const Game = {
             activePower: this.activePower,
             companionJoined: this.companionJoined,
             sticker: this.sticker,
+            runMs: Math.round(this.runMs || 0),
+            clearMs: this.clearMs != null ? Math.round(this.clearMs) : null,
             achievements: this.achievements,
             bossesDown: this.bossesDown,
             resolved: this.resolved,
@@ -1327,7 +1449,7 @@ const Game = {
         ctx.imageSmoothingEnabled = false;
         ctx.fillStyle = PALETTE.void;
         ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
-        if (this.mode === "menu") {
+        if (this.mode === "menu" || this.crawl) {
             this.drawStars();
             return;
         }

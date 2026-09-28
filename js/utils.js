@@ -59,6 +59,13 @@ function lineBlocked(solidAt, x1, y1, x2, y2) {
     return false;
 }
 
+function formatClearTime(ms) {
+    const total = Math.max(0, Math.round((ms || 0) / 1000));
+    const m = Math.floor(total / 60);
+    const s = total % 60;
+    return m + ":" + (s < 10 ? "0" : "") + s;
+}
+
 function cameraAxis(pos, worldPx, viewPx) {
     if (worldPx <= viewPx) return (worldPx - viewPx) / 2;
     return clamp(pos - viewPx / 2, 0, worldPx - viewPx);
