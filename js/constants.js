@@ -36,6 +36,8 @@ const PALETTE = {
     hair: "#F2D48A",
     hairDeep: "#C9A15A",
     stripe: "#F0C040",
+    // Kylo's cloak. Midtone between vader-char and a warm rim.
+    ash: "#3A3038",
     // Compactor grit. Three values so wet patches and crate shade read.
     junk: "#8B7355",
     junkDeep: "#5C4A36",

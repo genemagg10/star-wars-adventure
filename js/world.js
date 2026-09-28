@@ -164,10 +164,28 @@ const FLOOR_CYCLE = {
     conduit: ["floor-deck", "floor-deck", "floor-deck-b", "floor-deck-c"],
     // Dry grit twice, then a wet patch and a loose board.
     trash: ["floor-trash", "floor-trash", "floor-trash-b", "floor-trash-c"],
-    gallery: ["floor-y", "floor", "floor-b"],
+    // Quiet hall twice, then a mirrored inlay, then a bare scuff. The ring and the void are picked by position.
+    gallery: ["floor-gallery", "floor-gallery", "floor-gallery-b", "floor-gallery-c"],
     fallen: ["floor-deck", "floor-deck", "floor-deck-b", "floor-deck-c"],
-    core: ["floor-u", "floor", "floor-b"],
+    // Cloak vein twice, then a second vein, then one lightning speck. The eye and the bolts are picked by position.
+    core: ["floor-core", "floor-core", "floor-core-b", "floor-core-c"],
 };
+
+// Circle under Darth Vader. Tile centers, not a layout change.
+const GALLERY_RING_R = 4.15;
+const GALLERY_RING_TH = 0.52;
+
+// Lightning cracks around the Emperor. Edge-connected, so the bolts read as a path.
+const CORE_BOLTS = {
+    "3,0": 1, "4,0": 1, "4,1": 1, "5,1": 1, "5,0": 1, "6,0": 1, "6,-1": 1, "7,-1": 1, "7,0": 1, "8,0": 1,
+    "-3,0": 1, "-4,0": 1, "-4,-1": 1, "-5,-1": 1, "-5,0": 1, "-6,0": 1, "-6,1": 1, "-7,1": 1, "-7,0": 1, "-8,0": 1,
+    "0,-3": 1, "0,-4": 1, "1,-4": 1, "1,-5": 1, "0,-5": 1, "0,-6": 1, "-1,-6": 1, "-1,-7": 1, "0,-7": 1, "0,-8": 1,
+    "0,3": 1, "0,4": 1, "-1,4": 1, "-1,5": 1, "0,5": 1, "0,6": 1, "1,6": 1, "1,7": 1, "0,7": 1, "0,8": 1,
+};
+
+function ringSuffix(n) {
+    return n < 0 ? "m" + (-n) : String(n);
+}
 
 const World = {
     sectors: [
@@ -261,6 +279,8 @@ const World = {
         const hangar = sector.id === "hangar";
         const trash = sector.id === "trash";
         const deck = sector.id === "fallen" || sector.id === "conduit";
+        const gallery = sector.id === "gallery";
+        const core = sector.id === "core";
         if (ch === "#") {
             if (dock) {
                 const port = ((tx * 3 + ty * 5) % 7) === 0;
@@ -270,9 +290,16 @@ const World = {
             if (hangar) return this.hangarWallKey(tx, ty, sector, game);
             if (trash) return this.trashWallKey(tx, ty, sector);
             if (deck) return this.deckWallKey(tx, ty, sector);
+            if (gallery) return this.arenaWallKey(tx, ty, sector, "gallery");
+            if (core) return this.arenaWallKey(tx, ty, sector, "core");
             return "wall";
         }
-        if (ch === "+") return dock ? "pillar-dock" : "pillar";
+        if (ch === "+") {
+            if (dock) return "pillar-dock";
+            if (gallery) return this.arenaPillarKey(tx, ty, sector, "gallery");
+            if (core) return this.arenaPillarKey(tx, ty, sector, "core");
+            return "pillar";
+        }
         if (ch === "~") {
             const on = Math.floor(game.time * 3) % 2 === 0;
             if (trash) return on ? "hazard-trash" : "hazard-trash-b";
@@ -286,6 +313,7 @@ const World = {
             if (dock) return game.exitOpen() ? "airlock-open" : "airlock";
             if (hangar) return game.exitOpen() ? "hangar-exit-open" : "hangar-exit";
             if (deck) return game.exitOpen() ? "exit-deck-open" : "exit-deck";
+            if (gallery) return game.exitOpen() ? "exit-gallery-open" : "exit-gallery";
             return game.exitOpen() ? "exit-open" : "exit";
         }
         if (ch === "C") {
@@ -297,6 +325,8 @@ const World = {
             if (hangar) return Math.floor(game.time * 3 + tx) % 2 === 0 ? "hangar-stripe" : "hangar-stripe-b";
             if (trash) return Math.floor(game.time * 3 + tx) % 2 === 0 ? "trash-track" : "trash-track-b";
             if (deck) return Math.floor(game.time * 3 + tx) % 2 === 0 ? "deck-guide" : "deck-guide-b";
+            if (gallery) return Math.floor(game.time * 3 + tx) % 2 === 0 ? "mark-gallery" : "mark-gallery-b";
+            if (core) return Math.floor(game.time * 3 + tx) % 2 === 0 ? "lane-core" : "lane-core-b";
             return Math.floor(game.time * 4 + tx) % 2 === 0 ? "stripe" : "stripe-b";
         }
         if (ch === "O") {
@@ -304,18 +334,82 @@ const World = {
             if (dock) return on ? "viewport-dock" : "viewport-dock-b";
             if (hangar) return on ? "viewport-hangar" : "viewport-hangar-b";
             if (deck) return on ? "terminal-deck" : "terminal-deck-b";
+            if (gallery) return on ? "throne-gallery" : "throne-gallery-b";
+            if (core) return on ? "well-core" : "well-core-b";
             return on ? "viewport" : "viewport-b";
         }
         if (ch === "I") {
             if (deck) return Math.floor(game.time * 2 + tx + ty) % 2 === 0 ? "hatch-deck" : "hatch-deck-b";
+            if (gallery) return "banner-gallery";
+            if (core) return "rod-core";
             return "pipe";
         }
         if (ch === "K") return "switch";
         if (ch === "L") return "switch";
         if (ch === "A") return "pad";
+        if (gallery) {
+            const marked = this.galleryFloorKey(tx, ty, sector);
+            if (marked) return marked;
+        }
+        if (core) {
+            const marked = this.coreFloorKey(tx, ty, sector, game);
+            if (marked) return marked;
+        }
         const cycle = FLOOR_CYCLE[sector.id] || FLOOR_CYCLE.dock;
         const n = Math.abs((tx * 13 + ty * 7) % cycle.length);
         return cycle[n];
+    },
+
+    // Gold crown on a long wall, pilaster on a shaft, elbow where they meet.
+    arenaWallKey(tx, ty, sector, kind) {
+        const tiles = sector.tiles;
+        const row = tiles[ty];
+        const left = row[tx - 1] === "#";
+        const right = row[tx + 1] === "#";
+        const up = tiles[ty - 1] && tiles[ty - 1][tx] === "#";
+        const down = tiles[ty + 1] && tiles[ty + 1][tx] === "#";
+        if (left && right) return "wall-" + kind;
+        if (up && down) return "wall-" + kind + "-v";
+        return "wall-" + kind + "-c";
+    },
+
+    // The 2×2 pillar is one plinth. North cells carry the capital.
+    arenaPillarKey(tx, ty, sector, kind) {
+        const tiles = sector.tiles;
+        const right = tiles[ty][tx + 1] === "+";
+        const down = tiles[ty + 1] && tiles[ty + 1][tx] === "+";
+        const col = right ? "w" : "e";
+        const row = down ? "n" : "s";
+        return "pillar-" + kind + "-" + row + col;
+    },
+
+    galleryFloorKey(tx, ty, sector) {
+        if (!sector.boss) return null;
+        const b = worldToTile(sector.boss.x, sector.boss.y);
+        const dx = tx - b.x;
+        const dy = ty - b.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist < GALLERY_RING_R - 0.55) return "floor-gallery-void";
+        if (Math.abs(dist - GALLERY_RING_R) <= GALLERY_RING_TH) {
+            return "floor-gallery-ring-" + ringSuffix(dx) + "x" + ringSuffix(dy);
+        }
+        return null;
+    },
+
+    coreFloorKey(tx, ty, sector, game) {
+        if (!sector.boss) return null;
+        const b = worldToTile(sector.boss.x, sector.boss.y);
+        const dx = tx - b.x;
+        const dy = ty - b.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist <= 2.6) return "floor-core-eye";
+        if (CORE_BOLTS[dx + "," + dy]) {
+            const horiz = Math.abs(dx) >= Math.abs(dy);
+            const flick = Math.floor(game.time * 2) % 2 === 0;
+            if (horiz) return flick ? "floor-core-zap" : "floor-core-zap-b";
+            return flick ? "floor-core-zap-v" : "floor-core-zap-v-b";
+        }
+        return null;
     },
 
     // North and south edges are a run of bay doors. Side walls stay tall ribs, with a gold sill every few tiles.
