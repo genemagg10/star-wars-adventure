@@ -108,24 +108,30 @@ function commitBossAttack(e, game) {
         e.intro = false;
         e.clearGrace = spec.grace;
         e.holdCap = INQUISITOR_CLEAR.hold;
+        e.farT = 0;
         e.hugT = 0;
         e.ringInside = e.ringInside || 0;
         const ringR = spec.ring;
-        const camp = e.ringInside >= spec.lateEntry;
+        const camp = !opening && e.ringInside >= spec.lateEntry;
         e.ringInside = 0;
         game.fx.push({ kind: "ring", x: e.x, y: e.y, r: 8, life: 0.28, color: PALETTE.purple, grow: 140 });
         if (dist(e.x, e.y, player.x, player.y) < ringR) {
             if (!camp) {
                 const away = normalize(player.x - e.x, player.y - e.y);
                 if (away.x || away.y) {
-                    player.kx += away.x * 80;
-                    player.ky += away.y * 80;
+                    player.kx += away.x * 70;
+                    player.ky += away.y * 70;
                 }
             } else {
                 const before = player.hp;
                 Combat.hurtPlayer(game, 1, e.x, e.y);
-                if (player.hp < before && player.invuln < INQUISITOR_CLEAR.blinkInvuln) {
-                    player.invuln = INQUISITOR_CLEAR.blinkInvuln;
+                if (player.hp < before) {
+                    if (player.invuln < INQUISITOR_CLEAR.blinkInvuln) player.invuln = INQUISITOR_CLEAR.blinkInvuln;
+                    const kick = Math.hypot(player.kx, player.ky);
+                    if (kick > 96) {
+                        player.kx *= 96 / kick;
+                        player.ky *= 96 / kick;
+                    }
                 }
             }
         }
@@ -178,14 +184,30 @@ function chromeDashHits(e, player) {
     return Math.abs(dx * face.y - dy * face.x) < half;
 }
 
+// After a blink, settle into saber reach and stay. Do not orbit back out.
+function shadowPocket(e, player) {
+    const dir = normalize(player.x - e.x, player.y - e.y);
+    const gap = dist(e.x, e.y, player.x, player.y);
+    const pocket = INQUISITOR_CLEAR.pocket;
+    if (!dir.x && !dir.y) return { mx: 0, my: 0, speed: 0, gap: gap };
+    if (gap > pocket + 6) return { mx: dir.x, my: dir.y, speed: INQUISITOR_CLEAR.chase, gap: gap };
+    if (gap < pocket - 12) return { mx: -dir.x, my: -dir.y, speed: 34, gap: gap };
+    return { mx: 0, my: 0, speed: 0, gap: gap };
+}
+
 function updateBoss(e, game, dt) {
     decayKick(e, dt);
+    if (e.bossId === "shadow" && !e.intro && e.state !== "telegraph") {
+        const damp = Math.max(0, 1 - dt * 12);
+        e.kx *= damp;
+        e.ky *= damp;
+    }
     e.hitFlash = Math.max(0, e.hitFlash - dt);
     const player = game.player;
     if (!e.intro && e.seenHp != null && e.hp < e.seenHp && e.state !== "telegraph") {
         if (e.bossId === "chrome") {
             e.timer = Math.min(PHASMA_CLEAR.hold, (e.timer || 0) + PHASMA_CLEAR.hitStretch);
-        } else if (e.bossId === "shadow") {
+        } else if (e.bossId === "shadow" && e.state === "approach" && e.clearGrace <= 0) {
             const cap = e.holdCap || INQUISITOR_CLEAR.hold;
             e.timer = Math.min(cap, (e.timer || 0) + INQUISITOR_CLEAR.hitStretch);
         }
@@ -203,10 +225,11 @@ function updateBoss(e, game, dt) {
                 mx = -back.x;
                 my = -back.y;
                 speed = e.speed * PHASMA_CLEAR.approach;
-            } else if (e.bossId === "shadow" && gap < INQUISITOR_CLEAR.standoff && (back.x || back.y)) {
-                mx = -back.x;
-                my = -back.y;
-                speed = e.speed * INQUISITOR_CLEAR.approach;
+            } else if (e.bossId === "shadow") {
+                const step = shadowPocket(e, player);
+                mx = step.mx;
+                my = step.my;
+                speed = step.speed;
             }
             slide(e, (mx * speed + e.kx) * dt, (my * speed + e.ky) * dt, game);
             if (e.clearGrace <= 0 && e.bossId === "chrome" && !e.intro) {
@@ -223,36 +246,16 @@ function updateBoss(e, game, dt) {
             let my = dir.y;
             let speed = e.speed;
             if (e.bossId === "shadow") {
-                const spec = e.intro ? INQUISITOR_OPEN : INQUISITOR_CLEAR;
-                speed = e.speed * spec.approach;
-                const gap = dist(e.x, e.y, player.x, player.y);
                 if (e.intro) {
+                    speed = e.speed * INQUISITOR_OPEN.approach;
                     const orbit = normalize(dir.x * 0.2 - dir.y, dir.y * 0.2 + dir.x);
                     mx = orbit.x;
                     my = orbit.y;
                 } else {
-                    const inner = INQUISITOR_CLEAR.standoff - 14;
-                    if (gap < inner) {
-                        mx = -dir.x;
-                        my = -dir.y;
-                    } else if (gap < INQUISITOR_CLEAR.standoff + 28) {
-                        const orbit = normalize(-dir.y, dir.x);
-                        let ox = orbit.x * INQUISITOR_CLEAR.drift;
-                        let oy = orbit.y * INQUISITOR_CLEAR.drift;
-                        if (gap > INQUISITOR_CLEAR.standoff + 6) {
-                            ox += dir.x * 0.5;
-                            oy += dir.y * 0.5;
-                        } else if (gap < INQUISITOR_CLEAR.standoff - 6) {
-                            ox -= dir.x * 0.35;
-                            oy -= dir.y * 0.35;
-                        }
-                        const n = normalize(ox, oy);
-                        mx = n.x;
-                        my = n.y;
-                    } else {
-                        mx = dir.x;
-                        my = dir.y;
-                    }
+                    const step = shadowPocket(e, player);
+                    mx = step.mx;
+                    my = step.my;
+                    speed = step.speed;
                 }
             } else if (e.bossId === "hooded") {
                 speed *= 0.35;
@@ -270,6 +273,7 @@ function updateBoss(e, game, dt) {
                     }
                 }
             }
+            const gapBefore = dist(e.x, e.y, player.x, player.y);
             slide(e, (mx * speed + e.kx) * dt, (my * speed + e.ky) * dt, game);
             const reach = e.bossId === "hooded" ? 320 : e.bossId === "shadow" ? (e.intro ? INQUISITOR_OPEN.reach : INQUISITOR_CLEAR.reach) : e.bossId === "chrome" ? 200 : e.bossId === "dark" ? 168 : 148;
             const gapNow = dist(e.x, e.y, player.x, player.y);
@@ -287,16 +291,20 @@ function updateBoss(e, game, dt) {
                     e.hugT = 0;
                 }
             } else if (e.bossId === "shadow" && !e.intro) {
-                const inner = INQUISITOR_CLEAR.standoff - 14;
-                if (gapNow < inner) {
-                    e.hugT = (e.hugT || 0) + dt;
-                    ready = e.hugT >= INQUISITOR_CLEAR.hug;
-                } else if (gapNow < INQUISITOR_CLEAR.standoff + 28) {
-                    e.hugT = 0;
+                // A kid sprinting backward used to trip the next blink before she
+                // arrived, so the saber never got a still target. Patience only
+                // fires when she is stuck (a wall, or the gap is not closing).
+                if (gapNow > INQUISITOR_CLEAR.leash) {
+                    const closing = gapNow < gapBefore - 0.04;
+                    if (closing) e.farT = 0;
+                    else {
+                        e.farT = (e.farT || 0) + dt;
+                        ready = e.farT >= INQUISITOR_CLEAR.patience;
+                    }
+                } else {
+                    e.farT = 0;
                     e.timer -= dt;
                     ready = e.timer <= 0;
-                } else {
-                    e.hugT = 0;
                 }
             } else {
                 e.timer -= dt;
@@ -319,12 +327,12 @@ function updateBoss(e, game, dt) {
             if (elapsed >= spec.earlyGrace && dist(player.x, player.y, e.telegraph.x, e.telegraph.y) < e.telegraph.r) {
                 e.ringInside = (e.ringInside || 0) + dt;
             }
-            // The ring is the lesson. She steps off so the tell is not a free swing.
+            // Step off the circle so the tell is not a free swing, but stay near.
             const away = normalize(e.x - player.x, e.y - player.y);
             const gap = dist(e.x, e.y, player.x, player.y);
-            const want = INQUISITOR_CLEAR.standoff + 36;
+            const want = INQUISITOR_CLEAR.pocket + 28;
             if (gap < want && (away.x || away.y)) {
-                slide(e, away.x * e.speed * spec.approach * dt, away.y * e.speed * spec.approach * dt, game);
+                slide(e, away.x * 46 * dt, away.y * 46 * dt, game);
             }
         }
         if (e.bossId === "chrome" && e.telegraph && e.telegraph.kind === "lane") {
@@ -470,6 +478,7 @@ const Entities = {
             specialT: 0,
             specialKind: "",
             invuln: 0.7,
+            moveGrace: 0,
             swing: 0,
             ignite: 0,
             kx: 0,
@@ -588,8 +597,12 @@ const Entities = {
         decayKick(p, dt);
         const hero = HEROES[p.heroId];
         const m = input.move;
+        p.moveGrace = Math.max(0, (p.moveGrace || 0) - dt);
         p.moving = !!(m.x || m.y);
-        if (p.moving) p.facing = { x: m.x, y: m.y };
+        if (p.moving) {
+            p.facing = { x: m.x, y: m.y };
+            p.moveGrace = 0.45;
+        }
         slide(p, (m.x * hero.speed + p.kx) * dt, (m.y * hero.speed + p.ky) * dt, game);
         if (input.attack) Combat.melee(game);
         if (input.special) Combat.special(game);

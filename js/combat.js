@@ -2,6 +2,16 @@
 
 const POWER_DMG = { push: 3, throw: 4, lightning: 5, rock: 4 };
 
+// Hands-on kids keep the stick pointed at the dodge, so a swing at the
+// Inquisitor during her hold used to miss behind them. While she is holding
+// still in reach, a moving hero's saber and Force Push connect around them.
+function shadowPunish(e, attacker) {
+    if (!e || !e.alive || e.bossId !== "shadow" || e.intro) return false;
+    if (e.state === "telegraph") return false;
+    if (!attacker) return false;
+    return !!(attacker.moving || (attacker.moveGrace || 0) > 0);
+}
+
 const Combat = {
     hurtEnemy(game, ent, dmg) {
         if (!ent || !ent.alive) return;
@@ -107,9 +117,12 @@ const Combat = {
             const dx = e.x - p.x;
             const dy = e.y - p.y;
             const d = Math.hypot(dx, dy) || 1;
-            if (d >= range + e.r * 0.5 + 6) continue;
+            const open = shadowPunish(e, p);
+            if (open) {
+                if (d >= range + e.r + 18) continue;
+            } else if (d >= range + e.r * 0.5 + 6) continue;
             const dot = (dx / d) * p.facing.x + (dy / d) * p.facing.y;
-            if (dot <= dotNeed) continue;
+            if (!open && dot <= dotNeed) continue;
             this.hurtEnemy(game, e, dmg);
             const away = normalize(dx, dy);
             e.kx += away.x * kick;
@@ -250,9 +263,12 @@ const Combat = {
             const dx = t.x - source.x;
             const dy = t.y - source.y;
             const d = Math.hypot(dx, dy) || 1;
-            if (d > range + (t.r || 0)) continue;
+            const open = team !== "foe" && shadowPunish(t, source);
+            if (open) {
+                if (d > range + (t.r || 0) + 20) continue;
+            } else if (d > range + (t.r || 0)) continue;
             const dot = (dx / d) * dir.x + (dy / d) * dir.y;
-            if (dot < 0.18) continue;
+            if (!open && dot < 0.18) continue;
             const away = normalize(dx, dy);
             if (team === "foe") {
                 this.hurtPlayer(game, 1, source.x, source.y);
