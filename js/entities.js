@@ -1,4 +1,4 @@
-// Star Station Adventure — heroes, white troopers, bosses, Little One.
+// Star Wars Adventure — heroes, stormtroopers, bosses, and Grogu.
 
 let NEXT_ENT_ID = 1;
 
@@ -127,14 +127,15 @@ function updateGuard(e, game, dt) {
     if (d > 22) slide(e, (dir.x * e.speed + e.kx) * dt, (dir.y * e.speed + e.ky) * dt, game);
     if (e.timer <= 0 && d < GUARD_STATS.range && !lineBlocked(game.solidAt, e.x, e.y, p.x, p.y)) {
         e.timer = GUARD_STATS.shot;
-        const spd = 145;
+        const aim = Math.atan2(dir.y, dir.x) + (Math.random() - 0.5) * 0.4;
+        const spd = 118;
         game.shots.push({
             kind: "bolt",
             team: "foe",
             x: e.x + dir.x * 12,
             y: e.y + dir.y * 12,
-            vx: dir.x * spd,
-            vy: dir.y * spd,
+            vx: Math.cos(aim) * spd,
+            vy: Math.sin(aim) * spd,
             r: 3,
             dmg: 1,
             life: 1.5,
@@ -159,7 +160,7 @@ const Entities = {
             attackCd: 0,
             powerCd: 0,
             hopeCd: 0,
-            invuln: 0,
+            invuln: 0.7,
             swing: 0,
             kx: 0,
             ky: 0,
@@ -171,7 +172,7 @@ const Entities = {
         return {
             id: NEXT_ENT_ID++,
             kind: "guard",
-            name: "White trooper",
+            name: "Stormtrooper",
             x: x,
             y: y,
             r: 7,

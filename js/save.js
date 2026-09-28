@@ -1,4 +1,4 @@
-// Star Station Adventure — one progress slot.
+// Star Wars Adventure — one progress slot.
 // The key prefix is ours. It must never collide with another game's saves.
 
 const SaveSystem = {

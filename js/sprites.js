@@ -1,4 +1,4 @@
-// Star Station Adventure — pixel-row sprites.
+// Star Wars Adventure — original pixel-row sprites. No scraped assets.
 // Each string is one row. "." is empty. Frames are baked once and blitted.
 
 const SPRITE_INK = {

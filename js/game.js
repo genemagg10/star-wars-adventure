@@ -1,4 +1,4 @@
-// Star Station Adventure — title, decks, chase lane, and the Hooded Master.
+// Star Wars Adventure — title, decks, chase lane, and the Emperor.
 
 const Game = {
     mode: "menu",
@@ -234,7 +234,7 @@ const Game = {
         this.frozen = false;
         UI.hideAll();
         this.enterSector(0);
-        this.toast("WASD move · Space attack · E interact");
+        this.toast("WASD move · Space lightsaber · E interact");
         this.toastT = 4.2;
         this.save();
     },
@@ -303,7 +303,7 @@ const Game = {
             this.openCard({
                 kicker: "Core Gate",
                 title: "The way is sealed",
-                body: "The Hooded Master waits until you hold Force Push, Saber Throw, Lightning, and Rock Toss. Still missing: " + names + ".",
+                body: "The Emperor waits until you hold Force Push, Saber Throw, Lightning, and Rock Toss. Still missing: " + names + ".",
                 buttons: [{
                     label: "Fall back",
                     onClick: () => {
@@ -327,25 +327,32 @@ const Game = {
         const bossAlive = this.enemies.some((e) => e.alive && e.kind === "boss");
         if (bossAlive) {
             const boss = this.enemies.filter((e) => e.kind === "boss")[0];
-            this.objective = "Defeat the " + (boss ? boss.name : "boss");
+            const label = boss ? boss.name : "boss";
+            const article = label === "Inquisitor" || label === "Emperor" ? "the " : "";
+            this.objective = "Defeat " + article + label;
             return;
         }
-        if (s.needsChest && !this.owns("rock")) {
+        if (this.chestBlocksExit()) {
             this.objective = "Open the salvage chest";
             return;
         }
         if (this.enemies.some((e) => e.alive)) {
-            this.objective = "Drop the white troopers";
+            this.objective = "Drop the stormtroopers";
             return;
         }
         if (s.exit) this.objective = "Reach the north lock";
         else this.objective = "Hold the deck";
     },
 
+    chestBlocksExit() {
+        const s = this.sector;
+        return !!(s && s.needsChest && s.chestReachable && !this.owns("rock"));
+    },
+
     exitOpen() {
         const s = this.sector;
         if (!s || !s.exit) return false;
-        if (s.needsChest && !this.owns("rock")) return false;
+        if (this.chestBlocksExit()) return false;
         if (this.enemies.some((e) => e.alive)) return false;
         return true;
     },
@@ -374,7 +381,7 @@ const Game = {
             this.openCard({
                 kicker: "Salvage chest",
                 title: "Rock Toss",
-                body: "The chest in the Trash Compactor clicks open. Press 4 to ready Rock Toss, then Q to throw it.",
+                body: "The chest between Darth Vader and Kylo Ren clicks open. Press 4 to ready Rock Toss, then Q to throw it.",
                 buttons: [{ label: "Take it", onClick: () => this.closeCard() }],
             });
             return;
@@ -393,7 +400,7 @@ const Game = {
             this.openCard({
                 kicker: "Achievement",
                 title: ACHIEVEMENTS.sticker,
-                body: "The hatch hid a quiet Chewoo-bot. You take the sticker. It does not wake.",
+                body: "The hatch hid a quiet Chewbacca-bot. You take the sticker. It does not wake.",
                 buttons: [{ label: "Leave it be", onClick: () => this.closeCard() }],
             });
             return;
@@ -440,7 +447,7 @@ const Game = {
         this.pending = null;
         this.openCard({
             title: "Hull breach",
-            body: "The white troopers got through. This deck is still waiting.",
+            body: "The stormtroopers got through. This deck is still waiting.",
             buttons: [{
                 label: "Try this sector again",
                 onClick: () => {
@@ -459,10 +466,10 @@ const Game = {
             this.openCard({
                 kicker: "Power",
                 title: "Force Push",
-                body: "The Chrome Captain's core is yours. Press 1 to ready Force Push, then Q to use it.",
+                body: "Captain Phasma's core is yours. Press 1 to ready Force Push, then Q to use it.",
                 buttons: [
                     { label: "Chase the lane", onClick: () => this.startChase() },
-                    { label: "Stay on the station", onClick: () => this.afterReward("chrome") },
+                    { label: "Stay on the Death Star", onClick: () => this.afterReward("chrome") },
                 ],
             });
             return;
@@ -474,7 +481,7 @@ const Game = {
             this.openCard({
                 kicker: "Power",
                 title: "Saber Throw",
-                body: "Press 2 to ready Saber Throw, then Q to let it fly. This chase lane is sealed. The snub fighters never launch.",
+                body: "Press 2 to ready Saber Throw, then Q to let the lightsaber fly. This chase lane is sealed. The TIE fighters never launch.",
                 buttons: [{ label: "Continue", onClick: () => this.afterReward("shadow") }],
             });
             return;
@@ -487,20 +494,25 @@ const Game = {
             SoundSystem.fanfare();
             this.openCard({
                 kicker: "Companion",
-                title: "Little One",
-                body: "Little One joins you. They have no heart of their own. They echo your last power, softly, after a long wait. This chase lane is sealed. The snub fighters never launch.",
+                title: "Grogu",
+                body: "Grogu, Baby Yoda, joins you. They have no heart of their own. They echo your last Force power, softly, after a long wait. This chase lane is sealed. The TIE fighters never launch.",
                 buttons: [{ label: "Continue", onClick: () => this.afterReward("dark") }],
             });
             return;
         }
         if (id === "fallen") {
+            const missedRock = !this.owns("rock");
             this.grantPower("lightning");
+            if (missedRock) this.grantPower("rock");
             this.save();
             SoundSystem.fanfare();
+            const body = missedRock
+                ? "Press 3 to ready Lightning, then Q. The salvage chest could not be opened, so Rock Toss is yours as well. Press 4, then Q. This chase lane is sealed. The TIE fighters never launch."
+                : "Press 3 to ready Lightning, then Q. Lavender light answers. This chase lane is sealed. The TIE fighters never launch.";
             this.openCard({
                 kicker: "Power",
                 title: "Lightning",
-                body: "Press 3 to ready Lightning, then Q. Lavender light answers. This chase lane is sealed. The snub fighters never launch.",
+                body: body,
                 buttons: [{ label: "Continue", onClick: () => this.afterReward("fallen") }],
             });
             return;
@@ -533,8 +545,8 @@ const Game = {
         SoundSystem.win();
         this.openCard({
             kicker: "Achievement",
-            title: "Station Saved",
-            body: "The Hooded Master falls. The Battle Station's core holds.",
+            title: "Death Star Saved",
+            body: "The Emperor falls. The Death Star's core holds.",
             line: WIN_LINE,
             notes: notes,
             buttons: [
@@ -576,7 +588,7 @@ const Game = {
             over: false,
         };
         document.body.classList.add("playing");
-        this.toast("Twin-engine fighter. Shoot the snub fighters.");
+        this.toast("X-wing. Shoot the TIE fighters.");
         this.toastT = 3.2;
         this.save();
     },
@@ -651,7 +663,7 @@ const Game = {
             c.over = true;
             this.openCard({
                 title: "Lane breach",
-                body: "The snub fighters caught the twin-engine fighter.",
+                body: "The TIE fighters caught the X-wing.",
                 buttons: [
                     { label: "Retry the lane", onClick: () => this.startChase() },
                     { label: "Skip the lane", onClick: () => this.afterReward("chrome") },
@@ -665,7 +677,7 @@ const Game = {
             this.openCard({
                 kicker: "Chase Lane",
                 title: "Lane clear",
-                body: "The twin-engine fighter breaks through the snub fighters.",
+                body: "The X-wing breaks through the TIE fighters.",
                 buttons: [{ label: "Continue", onClick: () => this.afterReward("chrome") }],
             });
         }

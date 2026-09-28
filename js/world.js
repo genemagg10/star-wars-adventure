@@ -1,5 +1,6 @@
-// Star Station Adventure — linear decks aboard the Battle Station.
-// Rock Toss lives in the Trash Compactor salvage chest (mid-game, before the Dark Lord).
+// Star Wars Adventure — linear decks aboard the Death Star.
+// Rock Toss primary path: the Trash Compactor chest sits between Darth Vader
+// and Kylo Ren. If that chest cannot be reached, Kylo Ren grants it.
 
 function makeGrid(w, h) {
     const g = [];
@@ -30,8 +31,7 @@ function deckDock() {
     putCell(g, 27, 30, "P");
     putCell(g, 27, 2, "E");
     putCell(g, 16, 18, "G");
-    putCell(g, 38, 18, "G");
-    putCell(g, 27, 12, "G");
+    putCell(g, 38, 20, "G");
     return g;
 }
 
@@ -149,11 +149,11 @@ const FLOOR_CYCLE = {
 const World = {
     sectors: [
         { id: "dock", name: "Docking Ring", bossId: null, needsChest: false, build: deckDock },
-        { id: "hangar", name: "Chrome Hangar", bossId: "chrome", needsChest: false, build: deckHangar },
-        { id: "conduit", name: "Shadow Conduit", bossId: "shadow", needsChest: false, build: deckConduit },
-        { id: "trash", name: "Trash Compactor", bossId: null, needsChest: true, build: deckTrash },
+        { id: "hangar", name: "Phasma Hangar", bossId: "chrome", needsChest: false, build: deckHangar },
+        { id: "conduit", name: "Inquisitor Conduit", bossId: "shadow", needsChest: false, build: deckConduit },
         { id: "gallery", name: "Throne Gallery", bossId: "dark", needsChest: false, build: deckGallery },
-        { id: "fallen", name: "Fallen Deck", bossId: "fallen", needsChest: false, build: deckFallen },
+        { id: "trash", name: "Trash Compactor", bossId: null, needsChest: true, build: deckTrash },
+        { id: "fallen", name: "Kylo Deck", bossId: "fallen", needsChest: false, build: deckFallen },
         { id: "core", name: "Core Gate", bossId: "hooded", needsChest: false, build: deckCore },
     ],
 
@@ -190,11 +190,20 @@ const World = {
                 else if (ch === "S") { sticker = p; tiles[y][x] = "."; }
             }
         }
+        let chestReachable = false;
+        if (spec.needsChest && chest && spawn) {
+            const from = worldToTile(spawn.x, spawn.y);
+            const to = worldToTile(chest.x, chest.y);
+            chestReachable = bfs(tiles, from.x, from.y, to.x, to.y, (ch) => {
+                return ch === "#" || ch === "+" || ch === "D";
+            });
+        }
         return {
             id: spec.id,
             name: spec.name,
             bossId: spec.bossId,
             needsChest: spec.needsChest,
+            chestReachable: chestReachable,
             w: w,
             h: h,
             tiles: tiles,
