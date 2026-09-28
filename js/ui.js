@@ -186,7 +186,11 @@ const UI = {
         document.getElementById("card-title").textContent = opts.title || "";
         document.getElementById("card-body").textContent = opts.body || "";
         const panel = document.querySelector("#screen-card .panel");
-        if (panel) panel.classList.toggle("loud", !!opts.loud);
+        if (panel) {
+            panel.classList.toggle("loud", !!opts.loud);
+            panel.classList.toggle("power-drop", !!opts.powerDrop);
+        }
+        this.paintCelebrate(opts);
         const line = document.getElementById("card-line");
         if (opts.line) {
             line.textContent = opts.line;
@@ -222,6 +226,46 @@ const UI = {
         }
         this.cardOpen = true;
         this.show("screen-card");
+    },
+
+    paintCelebrate(opts) {
+        const box = document.getElementById("card-celebrate");
+        if (!box) return;
+        const cele = opts && opts.celebrate;
+        if (!cele) {
+            box.classList.add("hidden");
+            return;
+        }
+        box.classList.remove("hidden");
+        document.getElementById("card-who").textContent = cele.hero;
+        const saber = document.getElementById("card-saber");
+        saber.textContent = cele.saber + " lightsaber";
+        saber.style.color = cele.saberColor || PALETTE.gold;
+        const heroCanvas = document.getElementById("card-hero");
+        const g = heroCanvas.getContext("2d");
+        g.imageSmoothingEnabled = false;
+        g.clearRect(0, 0, 64, 64);
+        const sprite = Sprites.cache[cele.heroId + "-down"];
+        if (sprite) g.drawImage(sprite, 0, 0, 64, 64);
+        const grogu = document.getElementById("card-grogu");
+        grogu.classList.toggle("hidden", !cele.grogu);
+        grogu.classList.toggle("hop", !!cele.grogu);
+        if (cele.grogu) {
+            const gg = grogu.getContext("2d");
+            gg.imageSmoothingEnabled = false;
+            gg.clearRect(0, 0, 48, 48);
+            const face = Sprites.cache["little"] || Sprites.cache["grogu-face"];
+            if (face) gg.drawImage(face, 0, 0, 48, 48);
+        }
+        const sparks = document.getElementById("card-sparks");
+        sparks.innerHTML = "";
+        for (let i = 0; i < 14; i++) {
+            const bit = document.createElement("i");
+            bit.style.left = (8 + Math.random() * 84) + "%";
+            bit.style.animationDelay = (Math.random() * 0.28) + "s";
+            bit.style.background = i % 3 === 0 ? (cele.saberColor || PALETTE.gold) : PALETTE.gold;
+            sparks.appendChild(bit);
+        }
     },
 
     hideCard() {
@@ -267,9 +311,12 @@ const UI = {
         const pad = 28;
         const w = Math.min(420, Math.ceil(ctx.measureText(text).width + pad));
         const x = Math.round(CANVAS_W / 2 - w / 2);
+        const accent = chase && game.chase && game.chase.lane
+            ? game.chase.lane.accent
+            : (game.sector && game.sector.accent) || PALETTE.panel;
         ctx.fillStyle = PALETTE.hull;
         ctx.fillRect(x, 12, w, 26);
-        ctx.strokeStyle = PALETTE.panel;
+        ctx.strokeStyle = accent;
         ctx.strokeRect(x + 0.5, 12.5, w - 1, 25);
         ctx.fillStyle = PALETTE.foam;
         ctx.fillText(text, CANVAS_W / 2, 26);

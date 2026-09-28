@@ -1,11 +1,70 @@
-// Star Wars Adventure — title, decks, the hangar chase, and the Emperor.
-// Only the Phasma hangar lane is playable. Later lanes stay sealed.
+// Star Wars Adventure — title, decks, three chase lanes, and the Emperor.
+// One chase mode. CHASE_LANES supplies duration, density, props, and the win.
 
-const HANGAR_CHASE = {
-    duration: 28,
-    objective: "Break through the TIEs",
-    spawnEvery: 0.55,
-    cap: 8,
+const CHASE_LANES = {
+    hangar: {
+        id: "hangar",
+        kicker: "Hangar Run",
+        objective: "Break through the TIEs",
+        toast: "X-wing. Shoot the TIE fighters.",
+        duration: 28,
+        spawnEvery: 0.55,
+        cap: 8,
+        pairChance: 0.55,
+        pattern: "swarm",
+        props: "bay",
+        margin: 36,
+        win: "survive",
+        resolve: "chrome",
+        accent: PALETTE.gold,
+        foeHp: 2,
+        shotGap: 1.2,
+        winTitle: "Hangar clear",
+        winBody: "The X-wing breaks through the TIE fighters.",
+        loseBody: "The TIE fighters caught the X-wing.",
+    },
+    bay: {
+        id: "bay",
+        kicker: "Vader's Bay",
+        objective: "Slip the shuttles",
+        toast: "Darth Vader's bay. Weave the columns.",
+        duration: 24,
+        spawnEvery: 0.85,
+        cap: 5,
+        pairChance: 0,
+        pattern: "columns",
+        props: "gantry",
+        margin: 48,
+        win: "survive",
+        resolve: "dark",
+        accent: PALETTE.orange,
+        foeHp: 3,
+        shotGap: 0.95,
+        winTitle: "Bay clear",
+        winBody: "The shuttles fall behind. Grogu stays with you.",
+        loseBody: "A shuttle caught the X-wing.",
+    },
+    trench: {
+        id: "trench",
+        kicker: "Trench Run",
+        objective: "Thread the trench",
+        toast: "Trench run. Stay off the towers.",
+        duration: 26,
+        spawnEvery: 0.7,
+        cap: 7,
+        pairChance: 0.4,
+        pattern: "trench",
+        props: "trench",
+        margin: 108,
+        win: "survive",
+        resolve: null,
+        accent: PALETTE.blue,
+        foeHp: 2,
+        shotGap: 1.05,
+        winTitle: "Trench clear",
+        winBody: "The surface towers fall silent. The Emperor is waiting.",
+        loseBody: "The towers caught the X-wing.",
+    },
 };
 
 const Game = {
@@ -347,7 +406,7 @@ const Game = {
             const names = missing.map((id) => POWERS[id].name).join(", ");
             this.openCard({
                 kicker: "Core Gate",
-                title: "The way is sealed",
+                title: "Four powers first",
                 body: "The Emperor waits until you hold Force Push, Saber Throw, Lightning, and Rock Toss. Still missing: " + names + ".",
                 buttons: [{
                     label: "Fall back",
@@ -359,6 +418,17 @@ const Game = {
             });
         } else if (bossDown && spec.bossId && !this.resolved[spec.bossId]) {
             this.openReward(spec.bossId);
+        } else if (spec.id === "core" && !bossDown && !this.resolved.trench) {
+            this.openCard({
+                kicker: "Trench Run",
+                title: "The trench is open",
+                loud: true,
+                body: "Surface towers line the trench to the Emperor. Fly it in the X-wing, or walk in and face him.",
+                buttons: [
+                    { label: "Fly the trench", onClick: () => this.startChase("trench") },
+                    { label: "Face the Emperor", onClick: () => this.closeCard() },
+                ],
+            });
         }
         // Entrance snapshot only. Continue does not restore secretOpen or a mid-fight position.
         this.save();
@@ -428,6 +498,7 @@ const Game = {
                 title: "Rock Toss",
                 loud: true,
                 body: "The chest between Darth Vader and Kylo Ren clicks open. Press 4, tap gem 4, or hold Power to switch. Then toss it.",
+                powerDrop: true,
                 buttons: [{ label: "Take it", onClick: () => this.closeCard() }],
             });
             return;
@@ -473,7 +544,11 @@ const Game = {
                 : id === "rock" ? PALETTE.gold
                 : id === "throw" ? PALETTE.purple
                 : PALETTE.blue;
+            this.flash = 0.2;
             Combat.burst(this, this.player.x, this.player.y, color);
+            Combat.burst(this, this.player.x, this.player.y, PALETTE.foam);
+            this.fx.push({ kind: "ring", x: this.player.x, y: this.player.y, r: 8, life: 0.4, color: color, grow: 200 });
+            this.fx.push({ kind: "ring", x: this.player.x, y: this.player.y, r: 4, life: 0.28, color: PALETTE.gold, grow: 120 });
         }
     },
 
@@ -525,8 +600,9 @@ const Game = {
                 title: "Force Push",
                 loud: true,
                 body: "Captain Phasma's core is yours. Press 1, tap gem 1, or hold Power to switch. Then use Force Push.",
+                powerDrop: true,
                 buttons: [
-                    { label: "Chase the lane", onClick: () => this.startChase() },
+                    { label: "Chase the lane", onClick: () => this.startChase("hangar") },
                     { label: "Stay on the Death Star", onClick: () => this.afterReward("chrome") },
                 ],
             });
@@ -541,7 +617,8 @@ const Game = {
                 kicker: "Power",
                 title: "Saber Throw",
                 loud: true,
-                body: "Press 2, tap gem 2, or hold Power to switch, then let the lightsaber fly. This chase lane is sealed. The TIE fighters never launch.",
+                body: "Press 2, tap gem 2, or hold Power to switch, then let the lightsaber fly.",
+                powerDrop: true,
                 buttons: [{ label: "Continue", onClick: () => this.afterReward("shadow") }],
             });
             return;
@@ -561,8 +638,11 @@ const Game = {
                 kicker: "Companion",
                 title: "Grogu",
                 loud: true,
-                body: "Grogu, Baby Yoda, joins you. They have no heart of their own. A gold echo follows your last Force power after a long wait. This chase lane is sealed. The TIE fighters never launch.",
-                buttons: [{ label: "Continue", onClick: () => this.afterReward("dark") }],
+                body: "Grogu, Baby Yoda, joins you. They have no heart of their own. A gold echo follows your last Force power after a long wait. Darth Vader's bay is open if you want the X-wing.",
+                buttons: [
+                    { label: "Fly the bay", onClick: () => this.startChase("bay") },
+                    { label: "Stay on the Death Star", onClick: () => this.afterReward("dark") },
+                ],
             });
             return;
         }
@@ -574,12 +654,13 @@ const Game = {
             SoundSystem.unlock();
             SoundSystem.learned();
             const body = missedRock
-                ? "Press 3, tap gem 3, or hold Power to switch, for Lightning. The salvage chest could not be opened, so Rock Toss is yours as well. Press 4, then use it. This chase lane is sealed. The TIE fighters never launch."
-                : "Press 3, tap gem 3, or hold Power to switch, for Lightning. Lavender light answers. This chase lane is sealed. The TIE fighters never launch.";
+                ? "Press 3, tap gem 3, or hold Power to switch, for Lightning. The salvage chest could not be opened, so Rock Toss is yours as well. Press 4, then use it."
+                : "Press 3, tap gem 3, or hold Power to switch, for Lightning. Lavender light answers.";
             this.openCard({
                 kicker: "Power",
                 title: "Lightning",
                 loud: true,
+                powerDrop: true,
                 body: body,
                 buttons: [{ label: "Continue", onClick: () => this.afterReward("fallen") }],
             });
@@ -613,12 +694,31 @@ const Game = {
         if (this.sticker) notes.push(ACHIEVEMENTS.sticker);
         SoundSystem.unlock();
         SoundSystem.win();
+        this.flash = 0.24;
+        if (this.player) {
+            const color = saberById(this.saber).color;
+            Combat.burst(this, this.player.x, this.player.y, color);
+            Combat.burst(this, this.player.x, this.player.y, PALETTE.gold);
+            this.fx.push({ kind: "ring", x: this.player.x, y: this.player.y, r: 10, life: 0.45, color: PALETTE.gold, grow: 220 });
+            if (this.companion) {
+                Combat.burst(this, this.companion.x, this.companion.y, PALETTE.gold);
+            }
+        }
+        const hero = HEROES[this.heroId];
+        const saber = saberById(this.saber);
         this.openCard({
             kicker: "Achievement",
             title: "Death Star Saved",
-            body: "The Emperor falls. The Death Star's core holds.",
+            body: (hero ? hero.name : "You") + " holds the core. " + (saber ? saber.name : "The") + " lightsaber stays lit.",
             line: WIN_LINE,
             loud: true,
+            celebrate: {
+                hero: hero ? hero.name : "Hero",
+                heroId: this.heroId,
+                saber: saber ? saber.name : "Blue",
+                saberColor: saber ? saber.color : PALETTE.blue,
+                grogu: this.companionJoined,
+            },
             notes: notes,
             buttons: [
                 { label: "Back to title", onClick: () => this.quitToTitle() },
@@ -636,8 +736,8 @@ const Game = {
         UI.showHero();
     },
 
-    startChase() {
-        this.resolved.chrome = true;
+    startChase(laneId) {
+        const lane = CHASE_LANES[laneId] || CHASE_LANES.hangar;
         this.paused = false;
         UI.hidePause();
         this.closeCard();
@@ -645,9 +745,10 @@ const Game = {
         this.mode = "chase";
         this.flash = 0;
         this.chase = {
+            lane: lane,
             t: 0,
-            duration: HANGAR_CHASE.duration,
-            objective: HANGAR_CHASE.objective,
+            duration: lane.duration,
+            objective: lane.objective,
             hp: 6,
             maxHp: 6,
             invuln: 0,
@@ -660,13 +761,14 @@ const Game = {
             shots: [],
             sparks: [],
             spawn: 0.2,
+            spawnN: 0,
             over: false,
             beat: null,
             beatT: 0,
             card: false,
         };
         document.body.classList.add("playing");
-        this.toast("X-wing. Shoot the TIE fighters.");
+        this.toast(lane.toast);
         this.toastT = 3.2;
         this.save();
     },
@@ -694,7 +796,8 @@ const Game = {
         c.cd = Math.max(0, c.cd - dt);
         c.pushCd = Math.max(0, c.pushCd - dt);
         const spd = 250;
-        c.x = clamp(c.x + input.move.x * spd * dt, 36, CANVAS_W - 36);
+        const edge = c.lane.margin || 36;
+        c.x = clamp(c.x + input.move.x * spd * dt, edge, CANVAS_W - edge);
         c.y = clamp(c.y + input.move.y * spd * dt, 70, CANVAS_H - 36);
         if (input.move.x || input.move.y) c.facing = { x: input.move.x, y: input.move.y };
         if (input.attack && c.cd <= 0) {
@@ -716,19 +819,20 @@ const Game = {
             }
             this.chaseSpark(c, c.x, c.y - 16, PALETTE.foam);
         }
+        const lane = c.lane;
         c.spawn -= dt;
-        if (c.spawn <= 0 && c.t < c.duration - 2.5 && c.enemies.length < HANGAR_CHASE.cap) {
-            c.spawn = HANGAR_CHASE.spawnEvery;
+        if (c.spawn <= 0 && c.t < c.duration - 2.5 && c.enemies.length < lane.cap) {
+            c.spawn = lane.spawnEvery;
             this.spawnChaseFoe(c, false);
-            if (Math.random() < 0.55 && c.enemies.length < HANGAR_CHASE.cap) this.spawnChaseFoe(c, true);
+            if (Math.random() < lane.pairChance && c.enemies.length < lane.cap) this.spawnChaseFoe(c, true);
         }
         for (let i = c.enemies.length - 1; i >= 0; i--) {
             const e = c.enemies[i];
             e.x += e.vx * dt;
             e.y += e.vy * dt;
             e.cd -= dt;
-            if (e.cd <= 0 && e.y > 10 && e.y < CANVAS_H) {
-                e.cd = 1.2;
+            if (e.kind !== "debris" && e.cd <= 0 && e.y > 10 && e.y < CANVAS_H) {
+                e.cd = e.shotGap || lane.shotGap;
                 const aim = normalize(c.x - e.x, c.y - e.y);
                 c.shots.push({ x: e.x, y: e.y + 8, vx: aim.x * 170, vy: aim.y * 170, team: "foe", life: 2 });
                 SoundSystem.bolt();
@@ -760,18 +864,46 @@ const Game = {
             if (gone) c.shots.splice(i, 1);
         }
         if (c.hp <= 0) this.beginChaseBeat(c, "lose");
-        else if (c.t >= c.duration) this.beginChaseBeat(c, "win");
+        else if (lane.win === "survive" && c.t >= c.duration) this.beginChaseBeat(c, "win");
     },
 
     spawnChaseFoe(c, pair) {
-        c.enemies.push({
+        const lane = c.lane;
+        const foe = {
+            kind: "tie",
             x: 56 + Math.random() * (CANVAS_W - 112),
             y: -18 - (pair ? 36 : 0),
-            hp: 2,
+            hp: lane.foeHp,
             vx: (Math.random() - 0.5) * 70,
             vy: 120 + Math.random() * 80,
             cd: 0.35 + Math.random() * 0.55,
-        });
+            shotGap: lane.shotGap,
+        };
+        if (lane.pattern === "columns") {
+            const col = Math.random() < 0.5 ? 0.28 : 0.72;
+            foe.kind = "shuttle";
+            foe.x = CANVAS_W * col + (Math.random() - 0.5) * 20;
+            foe.vx = (Math.random() - 0.5) * 18;
+            foe.vy = 68 + Math.random() * 28;
+        } else if (lane.pattern === "trench") {
+            if (pair) {
+                foe.kind = "debris";
+                foe.x = CANVAS_W * (0.38 + Math.random() * 0.24);
+                foe.vx = (Math.random() - 0.5) * 36;
+                foe.vy = 170 + Math.random() * 40;
+                foe.hp = 1;
+                foe.cd = 99;
+                foe.shotGap = 99;
+            } else {
+                const left = c.spawnN % 2 === 0;
+                foe.kind = "turret";
+                foe.x = left ? lane.margin - 16 : CANVAS_W - (lane.margin - 16);
+                foe.vx = 0;
+                foe.vy = 86;
+            }
+        }
+        c.spawnN += 1;
+        c.enemies.push(foe);
     },
 
     beginChaseBeat(c, beat) {
@@ -789,24 +921,45 @@ const Game = {
     },
 
     openChaseCard(c) {
+        const lane = c.lane;
         if (c.beat === "win") {
             this.openCard({
-                kicker: "Hangar Run",
-                title: "Hangar clear",
+                kicker: lane.kicker,
+                title: lane.winTitle,
                 loud: true,
-                body: "The X-wing breaks through the TIE fighters.",
-                buttons: [{ label: "Continue", onClick: () => this.afterReward("chrome") }],
+                body: lane.winBody,
+                buttons: [{ label: "Continue", onClick: () => this.finishChase(c) }],
             });
             return;
         }
         this.openCard({
             title: "Lane breach",
-            body: "The TIE fighters caught the X-wing.",
+            body: lane.loseBody,
             buttons: [
-                { label: "Retry the lane", onClick: () => this.startChase() },
-                { label: "Skip the lane", onClick: () => this.afterReward("chrome") },
+                { label: "Retry the lane", onClick: () => this.startChase(lane.id) },
+                { label: lane.resolve ? "Skip the lane" : "Face the Emperor", onClick: () => this.finishChase(c) },
             ],
         });
+    },
+
+    finishChase(c) {
+        const lane = c.lane;
+        const won = c.beat === "win";
+        this.chase = null;
+        this.mode = "play";
+        if (lane.resolve) {
+            this.afterReward(lane.resolve);
+            return;
+        }
+        this.closeCard();
+        this.paused = false;
+        this.frozen = false;
+        document.body.classList.add("playing");
+        if (won) {
+            this.resolved.trench = true;
+            this.save();
+            this.toast("The Emperor is waiting.");
+        }
     },
 
     chaseSpark(c, x, y, color) {
@@ -952,22 +1105,8 @@ const Game = {
     drawChase() {
         const ctx = this.ctx;
         const c = this.chase;
-        const speed = 220;
-        ctx.fillStyle = PALETTE.hull;
-        for (let i = 0; i < 12; i++) {
-            const y = ((i * 64 + c.t * speed) % (CANVAS_H + 64)) - 28;
-            ctx.fillRect(22, y, 10, 26);
-            ctx.fillRect(CANVAS_W - 32, y, 10, 26);
-        }
-        ctx.fillStyle = PALETTE.gold;
-        for (let i = 0; i < 8; i++) {
-            const y = ((i * 84 + c.t * (speed + 40)) % (CANVAS_H + 84)) - 36;
-            ctx.fillRect(CANVAS_W / 2 - 2, y, 4, 14);
-        }
-        for (let i = 0; i < c.enemies.length; i++) {
-            const e = c.enemies[i];
-            blitShip(ctx, "ship-snub", e.x, e.y, { x: e.vx, y: Math.max(0.2, e.vy) });
-        }
+        this.drawChaseProps(ctx, c);
+        for (let i = 0; i < c.enemies.length; i++) this.drawChaseFoe(ctx, c, c.enemies[i]);
         for (let i = 0; i < c.shots.length; i++) {
             const s = c.shots[i];
             ctx.fillStyle = s.team === "player" ? PALETTE.blue : PALETTE.foam;
@@ -983,6 +1122,79 @@ const Game = {
         if (!(c.invuln > 0 && Math.floor(this.time * 16) % 2 === 0)) {
             blitShip(ctx, "ship-twin", c.x, c.y, c.facing.x || c.facing.y ? c.facing : { x: 0, y: -1 });
         }
+    },
+
+    drawChaseProps(ctx, c) {
+        const props = c.lane.props;
+        const accent = c.lane.accent;
+        const speed = props === "trench" ? 300 : 220;
+        if (props === "gantry") {
+            ctx.fillStyle = PALETTE.hull;
+            for (let i = 0; i < 8; i++) {
+                const y = ((i * 90 + c.t * speed) % (CANVAS_H + 90)) - 40;
+                ctx.fillRect(CANVAS_W * 0.22, y, 14, 48);
+                ctx.fillRect(CANVAS_W * 0.78 - 14, y, 14, 48);
+            }
+            ctx.fillStyle = accent;
+            for (let i = 0; i < 8; i++) {
+                const y = ((i * 90 + c.t * speed) % (CANVAS_H + 90)) - 28;
+                ctx.fillRect(CANVAS_W * 0.22 + 4, y, 6, 6);
+                ctx.fillRect(CANVAS_W * 0.78 - 10, y, 6, 6);
+            }
+            return;
+        }
+        if (props === "trench") {
+            const wall = Math.max(64, (c.lane.margin || 108) - 28);
+            ctx.fillStyle = PALETTE.panel;
+            ctx.fillRect(0, 0, wall, CANVAS_H);
+            ctx.fillRect(CANVAS_W - wall, 0, wall, CANVAS_H);
+            ctx.fillStyle = PALETTE.hull;
+            for (let i = 0; i < 10; i++) {
+                const y = ((i * 70 + c.t * speed) % (CANVAS_H + 70)) - 24;
+                ctx.fillRect(wall - 16, y, 16, 28);
+                ctx.fillRect(CANVAS_W - wall, y, 16, 28);
+            }
+            ctx.fillStyle = accent;
+            for (let i = 0; i < 10; i++) {
+                const y = ((i * 70 + c.t * speed) % (CANVAS_H + 70)) - 8;
+                ctx.fillRect(8, y, 10, 4);
+                ctx.fillRect(CANVAS_W - 18, y, 10, 4);
+            }
+            return;
+        }
+        ctx.fillStyle = PALETTE.hull;
+        for (let i = 0; i < 12; i++) {
+            const y = ((i * 64 + c.t * speed) % (CANVAS_H + 64)) - 28;
+            ctx.fillRect(22, y, 10, 26);
+            ctx.fillRect(CANVAS_W - 32, y, 10, 26);
+        }
+        ctx.fillStyle = accent;
+        for (let i = 0; i < 8; i++) {
+            const y = ((i * 84 + c.t * (speed + 40)) % (CANVAS_H + 84)) - 36;
+            ctx.fillRect(CANVAS_W / 2 - 2, y, 4, 14);
+        }
+    },
+
+    drawChaseFoe(ctx, c, e) {
+        const face = { x: e.vx, y: Math.max(0.2, e.vy) };
+        if (e.kind === "turret") {
+            ctx.fillStyle = PALETTE.panel;
+            ctx.fillRect(e.x - 8, e.y - 12, 16, 22);
+            ctx.fillStyle = c.lane.accent;
+            ctx.fillRect(e.x - 3, e.y - 4, 6, 6);
+            return;
+        }
+        if (e.kind === "debris") {
+            blitShip(ctx, "debris", e.x, e.y, face);
+            return;
+        }
+        if (e.kind === "shuttle") {
+            ctx.fillStyle = PALETTE.orange;
+            ctx.fillRect(e.x - 10, e.y - 6, 20, 8);
+            blitShip(ctx, "ship-snub", e.x, e.y + 6, face);
+            return;
+        }
+        blitShip(ctx, "ship-snub", e.x, e.y, face);
     },
 };
 

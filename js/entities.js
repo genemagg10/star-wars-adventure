@@ -24,45 +24,64 @@ function planHooded(e) {
     e.turn += 1;
 }
 
+// One readable verb each. The shape on the floor is the warning.
+// Phasma: a lane, then a straight rush.
+// Inquisitor: a circle on you, then a blink into it.
+// Vader: an orange tether, then a pull.
+// Kylo: a gold cross, then a short lunge and a bolt.
+// Emperor: a jagged storm, then lightning.
 function startTelegraph(e, game) {
     const player = game.player;
     const dir = normalize(player.x - e.x, player.y - e.y);
     if (dir.x || dir.y) e.facing = dir;
     e.state = "telegraph";
-    e.timer = 0.68;
-    if (e.bossId === "shadow") {
-        e.blink = { x: player.x - e.facing.x * 12, y: player.y - e.facing.y * 12 };
-        e.telegraph = { kind: "ring", x: e.blink.x, y: e.blink.y, r: 22, color: PALETTE.gold };
+    const face = { x: e.facing.x, y: e.facing.y };
+    if (e.bossId === "chrome") {
+        e.timer = 0.62;
+        e.telegraph = { kind: "lane", dir: face, len: 148, width: 26, color: PALETTE.foam };
+        SoundSystem.swing();
+    } else if (e.bossId === "shadow") {
+        e.timer = 0.72;
+        e.blink = { x: player.x, y: player.y };
+        e.telegraph = { kind: "ring", x: player.x, y: player.y, r: 30, color: PALETTE.purple };
+        SoundSystem.spin();
     } else if (e.bossId === "dark") {
-        e.telegraph = { kind: "ring", x: e.x, y: e.y, r: 54, color: PALETTE.orange };
-    } else if (e.bossId === "hooded") {
-        planHooded(e);
-        const color = e.nextPower === "lightning" ? PALETTE.gold : PALETTE.orange;
-        e.telegraph = { kind: "line", dir: { x: e.facing.x, y: e.facing.y }, len: 176, color: color };
+        e.timer = 0.78;
+        e.telegraph = { kind: "tether", x2: player.x, y2: player.y, color: PALETTE.orange };
+        SoundSystem.force("push", true);
     } else if (e.bossId === "fallen") {
-        e.telegraph = { kind: "line", dir: { x: e.facing.x, y: e.facing.y }, len: 156, color: PALETTE.gold };
+        e.timer = 0.46;
+        e.telegraph = { kind: "cross", dir: face, len: 86, color: PALETTE.gold };
+        SoundSystem.shot();
     } else {
-        e.telegraph = { kind: "line", dir: { x: e.facing.x, y: e.facing.y }, len: 120, color: PALETTE.orange };
+        e.timer = 0.82;
+        planHooded(e);
+        e.telegraph = {
+            kind: "storm",
+            pts: jaggedLine(e.x, e.y, e.x + face.x * 176, e.y + face.y * 176),
+            color: PALETTE.lightning,
+        };
+        SoundSystem.bolt();
     }
 }
 
 function commitBossAttack(e, game) {
+    const player = game.player;
+    const face = e.facing || { x: 1, y: 0 };
     if (e.bossId === "chrome") {
-        e.dash = { x: e.facing.x * 270, y: e.facing.y * 270, t: 0.26 };
-    } else if (e.bossId === "fallen") {
-        e.dash = { x: e.facing.x * 340, y: e.facing.y * 340, t: 0.22 };
+        e.dash = { x: face.x * 300, y: face.y * 300, t: 0.28 };
     } else if (e.bossId === "shadow") {
         if (e.blink && !game.circleBlocked(e.blink.x, e.blink.y, e.r)) {
             e.x = e.blink.x;
             e.y = e.blink.y;
         }
-        if (dist(e.x, e.y, game.player.x, game.player.y) < e.r + game.player.r + 6) {
-            Combat.hurtPlayer(game, 1, e.x, e.y);
-        }
+        game.fx.push({ kind: "ring", x: e.x, y: e.y, r: 8, life: 0.28, color: PALETTE.purple, grow: 140 });
+        if (dist(e.x, e.y, player.x, player.y) < 30) Combat.hurtPlayer(game, 1, e.x, e.y);
     } else if (e.bossId === "dark") {
-        if (dist(e.x, e.y, game.player.x, game.player.y) < 60 + game.player.r) {
-            Combat.hurtPlayer(game, 1, e.x, e.y);
-        }
+        const pull = normalize(e.x - player.x, e.y - player.y);
+        player.kx += pull.x * 240;
+        player.ky += pull.y * 240;
+        if (dist(e.x, e.y, player.x, player.y) < 64) Combat.hurtPlayer(game, 1, e.x, e.y);
         const guards = game.enemies.filter((x) => x.alive && x.kind === "guard").length;
         if (e.summons < 2 && guards < 2) {
             const sx = e.x + 28;
@@ -72,10 +91,26 @@ function commitBossAttack(e, game) {
                 e.summons += 1;
             }
         }
-        game.fx.push({ kind: "ring", x: e.x, y: e.y, r: 10, life: 0.28, color: PALETTE.orange });
+        game.fx.push({ kind: "ring", x: e.x, y: e.y, r: 10, life: 0.28, color: PALETTE.orange, grow: 80 });
+    } else if (e.bossId === "fallen") {
+        e.dash = { x: face.x * 220, y: face.y * 220, t: 0.14 };
+        game.shots.push({
+            kind: "bolt",
+            team: "foe",
+            x: e.x + face.x * 16,
+            y: e.y + face.y * 16,
+            vx: face.x * 240,
+            vy: face.y * 240,
+            r: 4,
+            dmg: 1,
+            life: 0.7,
+            color: PALETTE.gold,
+            hit: {},
+        });
     } else if (e.bossId === "hooded") {
         const power = e.nextPower || "lightning";
         Combat.cast(game, e, power, { team: "foe", dmg: 1 });
+        game.fx.push({ kind: "ring", x: e.x, y: e.y, r: 16, life: 0.24, color: PALETTE.lightning, grow: 90 });
     }
     e.telegraph = null;
 }
@@ -87,10 +122,31 @@ function updateBoss(e, game, dt) {
     if (e.state === "approach") {
         const dir = normalize(player.x - e.x, player.y - e.y);
         if (dir.x || dir.y) e.facing = dir;
-        slide(e, (dir.x * e.speed + e.kx) * dt, (dir.y * e.speed + e.ky) * dt, game);
+        let mx = dir.x;
+        let my = dir.y;
+        let speed = e.speed;
+        if (e.bossId === "shadow") {
+            const orbit = normalize(dir.x * 0.35 - dir.y, dir.y * 0.35 + dir.x);
+            mx = orbit.x;
+            my = orbit.y;
+        } else if (e.bossId === "hooded") {
+            speed *= 0.35;
+        } else if (e.bossId === "dark") {
+            speed *= 0.72;
+        }
+        slide(e, (mx * speed + e.kx) * dt, (my * speed + e.ky) * dt, game);
         e.timer -= dt;
-        if (e.timer <= 0 && dist(e.x, e.y, player.x, player.y) < 260) startTelegraph(e, game);
+        const reach = e.bossId === "hooded" ? 320 : e.bossId === "shadow" ? 250 : e.bossId === "chrome" ? 200 : e.bossId === "dark" ? 168 : 148;
+        if (e.timer <= 0 && dist(e.x, e.y, player.x, player.y) < reach) startTelegraph(e, game);
     } else if (e.state === "telegraph") {
+        if (e.telegraph && e.telegraph.kind === "tether") {
+            e.telegraph.x2 = player.x;
+            e.telegraph.y2 = player.y;
+        }
+        if (e.telegraph && e.telegraph.kind === "storm") {
+            const face = e.facing || { x: 1, y: 0 };
+            e.telegraph.pts = jaggedLine(e.x, e.y, e.x + face.x * 176, e.y + face.y * 176);
+        }
         e.timer -= dt;
         if (e.timer <= 0) {
             e.state = "recover";
@@ -386,15 +442,48 @@ function drawTelegraph(ctx, e, cam) {
     if (!t) return;
     ctx.save();
     ctx.strokeStyle = t.color;
+    ctx.fillStyle = t.color;
     ctx.lineWidth = 2;
-    ctx.beginPath();
+    const x = e.x - cam.x;
+    const y = e.y - cam.y;
     if (t.kind === "ring") {
-        ctx.arc(t.x - cam.x, t.y - cam.y, t.r, 0, Math.PI * 2);
-    } else {
-        ctx.moveTo(e.x - cam.x, e.y - cam.y);
-        ctx.lineTo(e.x + t.dir.x * t.len - cam.x, e.y + t.dir.y * t.len - cam.y);
+        const left = Math.max(0, Math.min(1, (e.timer || 0) / 0.72));
+        const r = t.r * (0.62 + 0.38 * (1 - left));
+        ctx.globalAlpha = 0.9;
+        ctx.beginPath();
+        ctx.arc(t.x - cam.x, t.y - cam.y, r, 0, Math.PI * 2);
+        ctx.stroke();
+    } else if (t.kind === "lane" && t.dir) {
+        ctx.translate(x, y);
+        ctx.rotate(Math.atan2(t.dir.y, t.dir.x));
+        ctx.globalAlpha = 0.35;
+        ctx.fillRect(8, -t.width / 2, t.len, t.width);
+        ctx.globalAlpha = 1;
+        ctx.strokeRect(8, -t.width / 2, t.len, t.width);
+    } else if (t.kind === "tether") {
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(t.x2 - cam.x, t.y2 - cam.y);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(t.x2 - cam.x, t.y2 - cam.y, 8, 0, Math.PI * 2);
+        ctx.stroke();
+    } else if (t.kind === "cross" && t.dir) {
+        const ang = Math.atan2(t.dir.y, t.dir.x);
+        ctx.beginPath();
+        for (let s = -1; s <= 1; s += 2) {
+            const a = ang + s * 0.7;
+            ctx.moveTo(x, y);
+            ctx.lineTo(x + Math.cos(a) * t.len, y + Math.sin(a) * t.len);
+        }
+        ctx.stroke();
+    } else if (t.kind === "storm" && t.pts && t.pts.length) {
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(t.pts[0].x - cam.x, t.pts[0].y - cam.y);
+        for (let p = 1; p < t.pts.length; p++) ctx.lineTo(t.pts[p].x - cam.x, t.pts[p].y - cam.y);
+        ctx.stroke();
     }
-    ctx.stroke();
     ctx.restore();
 }
 

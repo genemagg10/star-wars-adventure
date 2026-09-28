@@ -148,13 +148,13 @@ const FLOOR_CYCLE = {
 
 const World = {
     sectors: [
-        { id: "dock", name: "Docking Ring", bossId: null, needsChest: false, build: deckDock, clearGoal: "Clear the ring", exitGoal: "Reach the hangar" },
-        { id: "hangar", name: "Phasma Hangar", bossId: "chrome", needsChest: false, build: deckHangar, bossGoal: "Defeat Captain Phasma", exitGoal: "Leave the hangar" },
-        { id: "conduit", name: "Inquisitor Conduit", bossId: "shadow", needsChest: false, build: deckConduit, bossGoal: "Defeat the Inquisitor", exitGoal: "Leave the conduit" },
-        { id: "gallery", name: "Throne Gallery", bossId: "dark", needsChest: false, build: deckGallery, bossGoal: "Defeat Darth Vader", exitGoal: "Leave the gallery" },
-        { id: "trash", name: "Trash Compactor", bossId: null, needsChest: true, build: deckTrash, clearGoal: "Clear the compactor", chestGoal: "Open the salvage chest", exitGoal: "Leave the compactor" },
-        { id: "fallen", name: "Kylo Deck", bossId: "fallen", needsChest: false, build: deckFallen, bossGoal: "Defeat Kylo Ren", exitGoal: "Leave the deck" },
-        { id: "core", name: "Core Gate", bossId: "hooded", needsChest: false, build: deckCore, bossGoal: "Defeat the Emperor", clearGoal: "Hold the core", exitGoal: "Hold the core" },
+        { id: "dock", name: "Docking Ring", bossId: null, needsChest: false, build: deckDock, clearGoal: "Clear the ring", exitGoal: "Reach the hangar", accent: PALETTE.blue },
+        { id: "hangar", name: "Phasma Hangar", bossId: "chrome", needsChest: false, build: deckHangar, bossGoal: "Defeat Captain Phasma", exitGoal: "Leave the hangar", accent: PALETTE.gold },
+        { id: "conduit", name: "Inquisitor Conduit", bossId: "shadow", needsChest: false, build: deckConduit, bossGoal: "Defeat the Inquisitor", exitGoal: "Leave the conduit", accent: PALETTE.purple },
+        { id: "gallery", name: "Throne Gallery", bossId: "dark", needsChest: false, build: deckGallery, bossGoal: "Defeat Darth Vader", exitGoal: "Leave the gallery", accent: PALETTE.orange },
+        { id: "trash", name: "Trash Compactor", bossId: null, needsChest: true, build: deckTrash, clearGoal: "Clear the compactor", chestGoal: "Open the salvage chest", exitGoal: "Leave the compactor", accent: PALETTE.green },
+        { id: "fallen", name: "Kylo Deck", bossId: "fallen", needsChest: false, build: deckFallen, bossGoal: "Defeat Kylo Ren", exitGoal: "Leave the deck", accent: PALETTE.lightning },
+        { id: "core", name: "Core Gate", bossId: "hooded", needsChest: false, build: deckCore, bossGoal: "Defeat the Emperor", clearGoal: "Hold the core", exitGoal: "Hold the core", accent: PALETTE.foam },
     ],
 
     bake(spec) {
@@ -218,6 +218,7 @@ const World = {
             panel: panel,
             sticker: sticker,
             guards: guards,
+            accent: spec.accent || PALETTE.blue,
         };
     },
 
@@ -258,6 +259,16 @@ const World = {
                 Sprites.draw(ctx, key, tx * TILE + TILE / 2 - camera.x, ty * TILE + TILE / 2 - camera.y, false);
             }
         }
+        const accent = sector.accent || PALETTE.blue;
+        ctx.save();
+        ctx.fillStyle = accent;
+        ctx.globalAlpha = 0.07;
+        ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+        ctx.globalAlpha = 0.95;
+        ctx.strokeStyle = accent;
+        ctx.lineWidth = 4;
+        ctx.strokeRect(3, 3, CANVAS_W - 6, CANVAS_H - 6);
+        ctx.restore();
     },
 
     // Returns human-readable layout problems. Empty means the deck is walkable.

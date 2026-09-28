@@ -138,10 +138,11 @@ const SoundSystem = {
     },
 
     learned() {
-        this.tone(523, 0.1, "triangle", 0.24);
-        this.tone(659, 0.12, "triangle", 0.22);
-        this.tone(784, 0.16, "triangle", 0.22);
-        this.tone(1046, 0.26, "sine", 0.18);
+        this.tone(523, 0.1, "triangle", 0.34);
+        this.tone(659, 0.12, "triangle", 0.32);
+        this.tone(784, 0.16, "triangle", 0.3);
+        this.tone(1046, 0.28, "sine", 0.28);
+        this.tone(1318, 0.22, "sine", 0.18);
     },
 
     bond() {
@@ -155,10 +156,12 @@ const SoundSystem = {
     },
 
     win() {
-        this.tone(523, 0.12, "triangle", 0.22);
-        this.tone(659, 0.14, "triangle", 0.2);
-        this.tone(784, 0.18, "triangle", 0.2);
-        this.tone(1046, 0.34, "sine", 0.16);
+        this.tone(392, 0.14, "triangle", 0.28, 523);
+        this.tone(523, 0.16, "triangle", 0.32);
+        this.tone(659, 0.18, "triangle", 0.3);
+        this.tone(784, 0.22, "triangle", 0.28);
+        this.tone(1046, 0.42, "sine", 0.26);
+        this.tone(784, 0.32, "sine", 0.14, 1568);
     },
 
     boom() { this.tone(90, 0.18, "sawtooth", 0.26, 40); },

@@ -71,6 +71,75 @@ html, body {
     font-size: 32px;
 }
 
+.panel.power-drop {
+    box-shadow: 0 0 0 6px rgba(255, 200, 87, 0.62), 0 0 36px rgba(77, 163, 255, 0.35);
+    animation: card-pop 0.22s ease-out, power-glow 0.7s ease-out;
+}
+
+@keyframes power-glow {
+    from { box-shadow: 0 0 0 0 rgba(255, 200, 87, 0.9); }
+    to { box-shadow: 0 0 0 10px rgba(255, 200, 87, 0); }
+}
+
+.celebrate {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 14px;
+    min-height: 64px;
+}
+
+.celebrate.hidden { display: none; }
+
+.celebrate canvas {
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    background: transparent;
+}
+
+#card-who {
+    margin: 0;
+    font-size: 18px;
+}
+
+#card-saber {
+    margin: 4px 0 0;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-size: 13px;
+}
+
+#card-grogu.hop {
+    animation: grogu-hop 0.45s ease-in-out infinite;
+}
+
+#card-grogu.hidden { display: none; }
+
+@keyframes grogu-hop {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+}
+
+#card-sparks {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    overflow: visible;
+}
+
+#card-sparks i {
+    position: absolute;
+    bottom: 8px;
+    width: 6px;
+    height: 6px;
+    animation: spark-up 0.75s ease-out forwards;
+}
+
+@keyframes spark-up {
+    to { transform: translateY(-36px); opacity: 0; }
+}
+
 @keyframes card-pop {
     from { transform: scale(0.94); }
     to { transform: scale(1); }

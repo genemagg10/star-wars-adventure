@@ -37,7 +37,7 @@ Turn the phone sideways. A stick sits on the left. Attack and Power sit on the r
 - **Interact** stays dim until you stand beside a door, chest, hatch, or exit. It then names that thing (Chest, Hatch, Leave).
 - **Pause** is on the screen. Phone play does not need Esc.
 - **Mute** is on the title screen and in the pause menu. The choice is stored beside the save as `starStationAdventure.mute`. The phone stays quiet until the first tap. Begin already unlocks sound; Mute is how you turn it back off.
-- In the Hangar Run, Attack fires the X-wing. Power, once you have Force Push, shoves nearby TIE shots away.
+- In a chase, Attack fires the X-wing. Power, once you have Force Push, shoves nearby shots away. That is the Hangar Run, Darth Vader's bay, and the trench before the Emperor.
 
 Lightsaber colors are blue, green, purple, yellow, white, and orange. Hearts are green. The objective chip is one line. The saber gem sits at the right, and Grogu's face joins it after Darth Vader.
 
@@ -46,14 +46,16 @@ Lightsaber colors are blue, green, purple, yellow, white, and orange. Hearts are
 1. Title, then pick Luke Skywalker, Rey, or Chewbacca.
 2. Pick a lightsaber color.
 3. Docking Ring — stormtroopers.
-4. Phasma Hangar — defeat Captain Phasma to learn **Force Push**. The Hangar Run is the one playable chase: steer an X-wing, shoot TIE fighters, and break through.
-5. Inquisitor Conduit — defeat the Inquisitor to learn **Saber Throw**. The later chase card stays sealed. The TIE fighters do not launch.
-6. Throne Gallery — defeat Darth Vader. **Grogu** (Baby Yoda) joins. No Force power from this fight.
+4. Phasma Hangar — defeat Captain Phasma to learn **Force Push**. The Hangar Run is a real chase: steer an X-wing, shoot TIE fighters, and break through. You can skip it.
+5. Inquisitor Conduit — defeat the Inquisitor to learn **Saber Throw**.
+6. Throne Gallery — defeat Darth Vader. **Grogu** (Baby Yoda) joins. No Force power from this fight. Vader's bay is a second chase: slower shuttles in two columns. You can skip it.
 7. Trash Compactor — open the salvage chest to learn **Rock Toss**. A side hatch hides a Chewbacca-bot sticker.
 8. Kylo Deck — defeat Kylo Ren to learn **Lightning**.
-9. Core Gate — the Emperor stays sealed until you hold all four Force powers. Win, and the card reads **Part Two coming soon!**
+9. Core Gate — fly the trench (towers on the walls, debris in the slot) or walk in. The Emperor waits until you hold all four Force powers. Win, and the card shows your hero, your lightsaber color, Grogu hopping if they joined, and **Part Two coming soon!**
 
-Only the Phasma Hangar chase is playable. You can skip it and stay on the Death Star. It ends when the timer clears or the X-wing is shot down. Later “lane sealed” cards stay sealed.
+Each deck has its own accent from the palette: blue, gold, purple, orange, green, lavender, then white at the core. Hearts stay green. Danger stays orange.
+
+The three flights share one chase. A lane only changes how long it lasts, how crowded it is, what shows up, and how the background looks. You clear one by lasting until the timer ends.
 
 Force power keys stay fixed:
 
