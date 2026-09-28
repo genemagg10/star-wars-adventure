@@ -35,6 +35,7 @@ const PALETTE = {
     jacketDeep: "#A36532",
     hair: "#F2D48A",
     hairDeep: "#C9A15A",
+    stripe: "#F0C040",
     // Rose chrome for enemy blades only. Never a player saber, never a danger telegraph.
     foeBlade: "#D46A78",
 };
