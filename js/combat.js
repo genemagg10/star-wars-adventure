@@ -12,6 +12,44 @@ function shadowPunish(e) {
     return true;
 }
 
+// Same idea on the Kylo Deck. The cross is not a free hit. Once he is
+// holding in reach, a saber or Force cast connects even if the stick
+// still points at the dodge.
+function fallenPunish(e) {
+    if (!e || !e.alive || e.bossId !== "fallen" || e.intro) return false;
+    if (e.state === "telegraph") return false;
+    return true;
+}
+
+function fallenAim(game, source, maxDist) {
+    let best = null;
+    let bestD = maxDist;
+    const list = game.enemies || [];
+    for (let i = 0; i < list.length; i++) {
+        const e = list[i];
+        if (!fallenPunish(e)) continue;
+        const d = dist(source.x, source.y, e.x, e.y);
+        if (d < bestD) {
+            best = e;
+            bestD = d;
+        }
+    }
+    return best;
+}
+
+// During the finish hold, a heart from the lunge or the deck troopers
+// should not chain. The cross itself still uses the short breather.
+function kyloHoldBreath(game) {
+    const list = game.enemies || [];
+    for (let i = 0; i < list.length; i++) {
+        const e = list[i];
+        if (!e.alive || e.bossId !== "fallen" || e.intro) continue;
+        if (e.state !== "approach" || e.clearGrace > 0) continue;
+        return true;
+    }
+    return false;
+}
+
 const Combat = {
     hurtEnemy(game, ent, dmg) {
         if (!ent || !ent.alive) return;
@@ -49,6 +87,9 @@ const Combat = {
         if (!p || game.frozen || p.invuln > 0 || p.hp <= 0) return;
         p.hp -= dmg;
         p.invuln = 1.2;
+        if (p.hp > 0 && kyloHoldBreath(game) && p.invuln < KYLO_CLEAR.clipInvuln) {
+            p.invuln = KYLO_CLEAR.clipInvuln;
+        }
         const away = normalize(p.x - fromX, p.y - fromY);
         p.kx = away.x * 180;
         p.ky = away.y * 180;
@@ -117,7 +158,7 @@ const Combat = {
             const dx = e.x - p.x;
             const dy = e.y - p.y;
             const d = Math.hypot(dx, dy) || 1;
-            const open = shadowPunish(e);
+            const open = shadowPunish(e) || fallenPunish(e);
             if (open) {
                 if (d >= range + e.r + 18) continue;
             } else if (d >= range + e.r * 0.5 + 6) continue;
@@ -181,7 +222,16 @@ const Combat = {
 
     bowcasterBlast(game, p, hero) {
         p.specialT = 0.36;
-        const dir = p.facing.x || p.facing.y ? p.facing : { x: 1, y: 0 };
+        let dir = p.facing.x || p.facing.y ? p.facing : { x: 1, y: 0 };
+        const kylo = fallenAim(game, p, KYLO_CLEAR.aim);
+        if (kylo) {
+            const aim = normalize(kylo.x - p.x, kylo.y - p.y);
+            if (aim.x || aim.y) {
+                dir = aim;
+                p.facing = { x: aim.x, y: aim.y };
+                p.swingFacing = { x: aim.x, y: aim.y };
+            }
+        }
         SoundSystem.shot();
         SoundSystem.hum();
         game.shots.push({
@@ -246,6 +296,13 @@ const Combat = {
         if (opts.dmg != null) dmg = opts.dmg;
         else if (opts.weak) dmg = Math.max(1, Math.round(dmg * 0.5));
         const team = opts.team || "player";
+        if (team !== "foe" && (id === "throw" || id === "rock")) {
+            const kylo = fallenAim(game, source, KYLO_CLEAR.aim);
+            if (kylo) {
+                const aim = normalize(kylo.x - source.x, kylo.y - source.y);
+                if (aim.x || aim.y) source.facing = { x: aim.x, y: aim.y };
+            }
+        }
         if (id === "push") this.push(game, source, dmg, team, !!opts.weak);
         else if (id === "throw") this.saberThrow(game, source, dmg, team, !!opts.weak, !!opts.aimAssist);
         else if (id === "lightning") this.lightning(game, source, dmg, team, !!opts.weak);
@@ -263,7 +320,7 @@ const Combat = {
             const dx = t.x - source.x;
             const dy = t.y - source.y;
             const d = Math.hypot(dx, dy) || 1;
-            const open = team !== "foe" && shadowPunish(t);
+            const open = team !== "foe" && (shadowPunish(t) || fallenPunish(t));
             if (open) {
                 if (d > range + (t.r || 0) + 20) continue;
             } else if (d > range + (t.r || 0)) continue;
@@ -493,7 +550,18 @@ const Combat = {
                 }
             } else if (game.player && !s.hit.player && dist(s.x, s.y, game.player.x, game.player.y) < s.r + game.player.r) {
                 s.hit.player = true;
-                this.hurtPlayer(game, 1, s.x, s.y);
+                if (s.forgive) {
+                    const away = normalize(game.player.x - s.x, game.player.y - s.y);
+                    game.player.kx += away.x * 72;
+                    game.player.ky += away.y * 72;
+                    if (game.player.invuln < KYLO_CLEAR.shoveInvuln) game.player.invuln = KYLO_CLEAR.shoveInvuln;
+                } else {
+                    const before = game.player.hp;
+                    this.hurtPlayer(game, 1, s.x, s.y);
+                    if (s.finishClip && game.player.hp < before && game.player.invuln < KYLO_CLEAR.clipInvuln) {
+                        game.player.invuln = KYLO_CLEAR.clipInvuln;
+                    }
+                }
                 if (s.kind !== "saber") s.life = 0;
             }
             if (s.life > 0) keep.push(s);
