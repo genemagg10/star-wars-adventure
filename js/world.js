@@ -30,8 +30,7 @@ function deckDock() {
     putCell(g, 27, 30, "P");
     putCell(g, 27, 2, "E");
     putCell(g, 16, 18, "G");
-    putCell(g, 38, 18, "G");
-    putCell(g, 27, 12, "G");
+    putCell(g, 38, 20, "G");
     return g;
 }
 

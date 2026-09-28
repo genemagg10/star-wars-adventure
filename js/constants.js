@@ -42,7 +42,7 @@ const HEROES = {
     lucan: {
         name: "Lucan",
         blurb: "Longer reach. Hope Strike mends a heart when it lands.",
-        maxHp: 5,
+        maxHp: 6,
         speed: 156,
         melee: "hope",
         range: 54,
@@ -52,7 +52,7 @@ const HEROES = {
     rae: {
         name: "Rae",
         blurb: "Quicker steps. Staff Spin hits every foe around you.",
-        maxHp: 5,
+        maxHp: 6,
         speed: 196,
         melee: "spin",
         range: 38,
@@ -93,9 +93,9 @@ const ACHIEVEMENTS = {
 
 const GUARD_STATS = {
     hp: 6,
-    speed: 62,
-    shot: 1.55,
-    range: 168,
+    speed: 54,
+    shot: 2.05,
+    range: 150,
 };
 
 const BOSS_STATS = {
