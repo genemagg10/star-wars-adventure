@@ -55,6 +55,7 @@ function startTelegraph(e, game) {
         e.timer = spec.telegraph;
         e.blink = { x: player.x, y: player.y };
         e.ringInside = 0;
+        e.ringLeft = 0;
         e.telegraph = {
             kind: "ring",
             x: player.x,
@@ -112,15 +113,21 @@ function commitBossAttack(e, game) {
         e.hugT = 0;
         e.ringInside = e.ringInside || 0;
         const ringR = spec.ring;
-        const camp = !opening && e.ringInside >= spec.lateEntry;
+        const triedLeave = (e.ringLeft || 0) >= (INQUISITOR_CLEAR.leave || 0.22);
+        const camp = !opening && !triedLeave && e.ringInside >= spec.lateEntry;
         e.ringInside = 0;
+        e.ringLeft = 0;
+        e.holdBonus = 0;
         game.fx.push({ kind: "ring", x: e.x, y: e.y, r: 8, life: 0.28, color: PALETTE.purple, grow: 140 });
         if (dist(e.x, e.y, player.x, player.y) < ringR) {
             if (!camp) {
                 const away = normalize(player.x - e.x, player.y - e.y);
                 if (away.x || away.y) {
-                    player.kx += away.x * 70;
-                    player.ky += away.y * 70;
+                    player.kx += away.x * 48;
+                    player.ky += away.y * 48;
+                }
+                if (!opening && player.invuln < INQUISITOR_CLEAR.shoveInvuln) {
+                    player.invuln = INQUISITOR_CLEAR.shoveInvuln;
                 }
             } else {
                 const before = player.hp;
@@ -207,9 +214,15 @@ function updateBoss(e, game, dt) {
     if (!e.intro && e.seenHp != null && e.hp < e.seenHp && e.state !== "telegraph") {
         if (e.bossId === "chrome") {
             e.timer = Math.min(PHASMA_CLEAR.hold, (e.timer || 0) + PHASMA_CLEAR.hitStretch);
-        } else if (e.bossId === "shadow" && e.state === "approach" && e.clearGrace <= 0) {
-            const cap = e.holdCap || INQUISITOR_CLEAR.hold;
-            e.timer = Math.min(cap, (e.timer || 0) + INQUISITOR_CLEAR.hitStretch);
+        } else if (e.bossId === "shadow") {
+            const stretch = INQUISITOR_CLEAR.hitStretch;
+            const cap = INQUISITOR_CLEAR.stretchCap;
+            if (e.state === "approach" && e.clearGrace <= 0) {
+                e.timer = Math.min(cap, (e.timer || 0) + stretch);
+            } else {
+                const room = Math.max(0, cap - INQUISITOR_CLEAR.hold);
+                e.holdBonus = Math.min(room, (e.holdBonus || 0) + stretch);
+            }
         }
     }
     if (e.bossId === "chrome" || e.bossId === "shadow") e.seenHp = e.hp;
@@ -236,7 +249,9 @@ function updateBoss(e, game, dt) {
                 e.timer = PHASMA_CLEAR.hold;
                 e.hugT = 0;
             } else if (e.clearGrace <= 0 && e.bossId === "shadow") {
-                e.timer = e.holdCap || INQUISITOR_CLEAR.hold;
+                const base = e.holdCap || INQUISITOR_CLEAR.hold;
+                e.timer = Math.min(INQUISITOR_CLEAR.stretchCap, base + (e.holdBonus || 0));
+                e.holdBonus = 0;
                 e.hugT = 0;
             }
         } else {
@@ -324,8 +339,11 @@ function updateBoss(e, game, dt) {
         if (e.bossId === "shadow" && e.telegraph && e.telegraph.kind === "ring") {
             const spec = e.intro ? INQUISITOR_OPEN : INQUISITOR_CLEAR;
             const elapsed = (e.telegraph.dur || spec.telegraph) - e.timer;
-            if (elapsed >= spec.earlyGrace && dist(player.x, player.y, e.telegraph.x, e.telegraph.y) < e.telegraph.r) {
+            const inside = dist(player.x, player.y, e.telegraph.x, e.telegraph.y) < e.telegraph.r;
+            if (inside && elapsed >= spec.earlyGrace) {
                 e.ringInside = (e.ringInside || 0) + dt;
+            } else if (!inside && elapsed >= 0.25) {
+                e.ringLeft = (e.ringLeft || 0) + dt;
             }
             // Step off the circle so the tell is not a free swing, but stay near.
             const away = normalize(e.x - player.x, e.y - player.y);

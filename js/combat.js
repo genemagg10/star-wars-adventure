@@ -2,14 +2,14 @@
 
 const POWER_DMG = { push: 3, throw: 4, lightning: 5, rock: 4 };
 
-// Hands-on kids keep the stick pointed at the dodge, so a swing at the
-// Inquisitor during her hold used to miss behind them. While she is holding
-// still in reach, a moving hero's saber and Force Push connect around them.
-function shadowPunish(e, attacker) {
+// The walk-in chip lands while the stick is moving. The rest of her plate
+// was stuck because a kid then plants their feet still facing the dodge, and
+// that swing missed. During the hold, a saber or Force Push in reach connects
+// either way. The telegraph itself is not a free hit.
+function shadowPunish(e) {
     if (!e || !e.alive || e.bossId !== "shadow" || e.intro) return false;
     if (e.state === "telegraph") return false;
-    if (!attacker) return false;
-    return !!(attacker.moving || (attacker.moveGrace || 0) > 0);
+    return true;
 }
 
 const Combat = {
@@ -117,7 +117,7 @@ const Combat = {
             const dx = e.x - p.x;
             const dy = e.y - p.y;
             const d = Math.hypot(dx, dy) || 1;
-            const open = shadowPunish(e, p);
+            const open = shadowPunish(e);
             if (open) {
                 if (d >= range + e.r + 18) continue;
             } else if (d >= range + e.r * 0.5 + 6) continue;
@@ -263,7 +263,7 @@ const Combat = {
             const dx = t.x - source.x;
             const dy = t.y - source.y;
             const d = Math.hypot(dx, dy) || 1;
-            const open = team !== "foe" && shadowPunish(t, source);
+            const open = team !== "foe" && shadowPunish(t);
             if (open) {
                 if (d > range + (t.r || 0) + 20) continue;
             } else if (d > range + (t.r || 0)) continue;

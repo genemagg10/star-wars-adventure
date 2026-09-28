@@ -183,24 +183,28 @@ const INQUISITOR_OPEN = {
     reach: 170,
 };
 
-// After that blink she walks into saber reach and stays there. The hold
-// clock waits if you are still walking back, and a hit stretches it.
-// A short clip of the ring shoves without a heart. Camping the paint still
-// takes one, then a long invulnerability so the troopers cannot combo it.
+// Finish window. She stays in saber reach, and the hold runs long enough
+// to spend the hit points still on the plate. A saber or Force hit stretches
+// that hold past where it started. Stepping off a later ring and walking
+// back in shoves, with a short invulnerability, and does not take a heart.
+// Standing in the circle the whole time still takes one.
 const INQUISITOR_CLEAR = {
     approach: 0.42,
-    telegraph: 1.5,
+    telegraph: 1.55,
     ring: 34,
-    earlyGrace: 0.65,
-    lateEntry: 0.8,
-    grace: 0.7,
+    earlyGrace: 0.45,
+    lateEntry: 0.9,
+    leave: 0.22,
+    grace: 0.85,
     pocket: 40,
-    leash: 84,
-    patience: 3.2,
-    hold: 7.2,
-    hitStretch: 1.35,
+    leash: 96,
+    patience: 4.2,
+    hold: 11,
+    hitStretch: 2.4,
+    stretchCap: 16,
     chase: 210,
-    blinkInvuln: 3.1,
+    blinkInvuln: 3.4,
+    shoveInvuln: 1.8,
     reach: 210,
 };
 
