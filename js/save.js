@@ -51,6 +51,7 @@ const SaveSystem = {
             resolved: Object.assign({}, snapshot.resolved || {}),
             won: !!snapshot.won,
             dockTeachDone: !!snapshot.dockTeachDone,
+            trashCleared: !!snapshot.trashCleared,
         };
         try {
             localStorage.setItem(this.KEY, JSON.stringify(data));
