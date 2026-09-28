@@ -170,37 +170,38 @@ const PHASMA_CLEAR = {
     rushInvuln: 2.2,
 };
 
-// First blink. A wider, slower ring so the step-out reads, then the same
-// step-back and hold as the rest of the fight.
+// First blink. A wider, slower ring so the step-out reads. Missing it
+// shoves you clear and does not take a heart. The punish is the hold after.
 const INQUISITOR_OPEN = {
-    delay: 1.65,
-    approach: 0.34,
-    telegraph: 1.8,
-    ring: 40,
-    earlyGrace: 0.5,
-    lateEntry: 0.48,
-    grace: 1.9,
-    reach: 176,
+    delay: 1.1,
+    approach: 0.3,
+    telegraph: 2.0,
+    ring: 42,
+    earlyGrace: 0.85,
+    lateEntry: 0.95,
+    grace: 0.65,
+    reach: 170,
 };
 
-// After that blink. The purple ring stays the verb. She steps back and the
-// next ring waits through a long hold, a hit stretches that hold, and a short
-// clip of the circle does not take a heart. Camping the paint still does.
-// A blink that connects leaves i-frames so the conduit troopers cannot combo it.
+// After that blink she walks into saber reach and stays there. The hold
+// clock waits if you are still walking back, and a hit stretches it.
+// A short clip of the ring shoves without a heart. Camping the paint still
+// takes one, then a long invulnerability so the troopers cannot combo it.
 const INQUISITOR_CLEAR = {
-    approach: 0.4,
-    telegraph: 1.28,
-    ring: 32,
-    earlyGrace: 0.38,
-    lateEntry: 0.46,
-    grace: 1.8,
-    standoff: 46,
-    hold: 3.4,
-    hug: 2.45,
-    hitStretch: 0.75,
-    drift: 0.7,
-    blinkInvuln: 2.2,
-    reach: 188,
+    approach: 0.42,
+    telegraph: 1.5,
+    ring: 34,
+    earlyGrace: 0.65,
+    lateEntry: 0.8,
+    grace: 0.7,
+    pocket: 40,
+    leash: 84,
+    patience: 3.2,
+    hold: 7.2,
+    hitStretch: 1.35,
+    chase: 210,
+    blinkInvuln: 3.1,
+    reach: 210,
 };
 
 const ACHIEVEMENTS = {
@@ -230,7 +231,7 @@ const DOCK_TEACH = {
 
 const BOSS_STATS = {
     chrome: { name: "Captain Phasma", hp: 12, speed: 44, gap: 2.15 },
-    shadow: { name: "Inquisitor", hp: 18, speed: 78, gap: 1.2 },
+    shadow: { name: "Inquisitor", hp: 12, speed: 78, gap: 1.2 },
     dark: { name: "Darth Vader", hp: 36, speed: 48, gap: 1.7 },
     fallen: { name: "Kylo Ren", hp: 28, speed: 60, gap: 1.5 },
     hooded: { name: "Emperor", hp: 42, speed: 64, gap: 1.05 },
