@@ -80,6 +80,7 @@ function startTelegraph(e, game) {
             color: PALETTE.orange,
             dur: spec.telegraph,
             hurt: spec.hurt,
+            clear: !opening,
         };
         SoundSystem.force("push", true);
     } else if (e.bossId === "fallen") {
@@ -164,7 +165,10 @@ function commitBossAttack(e, game) {
         const spec = opening ? VADER_OPEN : VADER_CLEAR;
         e.intro = false;
         e.clearGrace = VADER_CLEAR.grace;
-        e.holdCap = VADER_CLEAR.hold;
+        // First pocket stays long enough to finish a messy mash. After the
+        // plate is at 30 or below, the next quiet is short so the orange
+        // cue comes back before the fight stalls.
+        e.holdCap = !opening && e.hp <= 30 ? VADER_CLEAR.lateHold : VADER_CLEAR.hold;
         e.farT = 0;
         const triedLeave = !opening && (e.tetherLeft || 0) >= VADER_CLEAR.leave;
         const camp = !opening && !triedLeave && (e.tetherInside || 0) >= VADER_CLEAR.lateEntry;
@@ -176,7 +180,13 @@ function commitBossAttack(e, game) {
             const pull = normalize(e.x - player.x, e.y - player.y);
             player.kx += pull.x * spec.pull;
             player.ky += pull.y * spec.pull;
-            if (gap < spec.hurt) Combat.hurtPlayer(game, 1, e.x, e.y);
+            if (gap < spec.hurt) {
+                const before = player.hp;
+                Combat.hurtPlayer(game, 1, e.x, e.y);
+                if (player.hp < before && player.invuln < VADER_CLEAR.openBreath) {
+                    player.invuln = VADER_CLEAR.openBreath;
+                }
+            }
         } else if (gap < spec.hurt && camp) {
             const before = player.hp;
             Combat.hurtPlayer(game, 1, e.x, e.y);
@@ -310,7 +320,7 @@ function updateBoss(e, game, dt) {
         e.kx *= damp;
         e.ky *= damp;
     }
-    if (e.bossId === "dark" && !e.intro && e.state !== "telegraph") {
+    if (e.bossId === "dark" && !e.intro) {
         const damp = Math.max(0, 1 - dt * 12);
         e.kx *= damp;
         e.ky *= damp;
@@ -339,17 +349,27 @@ function updateBoss(e, game, dt) {
                 e.holdBonus = Math.min(room, (e.holdBonus || 0) + stretch);
             }
         } else if (e.bossId === "dark") {
-            const stretch = VADER_CLEAR.hitStretch;
-            const cap = VADER_CLEAR.stretchCap;
-            if (e.state === "approach" && e.clearGrace <= 0) {
-                e.timer = Math.min(cap, (e.timer || 0) + stretch);
-            } else {
-                const room = Math.max(0, cap - VADER_CLEAR.hold);
-                e.holdBonus = Math.min(room, (e.holdBonus || 0) + stretch);
+            // A hit on the later orange ring should not delay the next cue.
+            // Hits during the quiet hold still stretch it.
+            if (e.state !== "telegraph") {
+                const stretch = VADER_CLEAR.hitStretch;
+                const cap = VADER_CLEAR.stretchCap;
+                if (e.state === "approach" && e.clearGrace <= 0) {
+                    e.timer = Math.min(cap, (e.timer || 0) + stretch);
+                } else {
+                    const room = Math.max(0, cap - VADER_CLEAR.hold);
+                    e.holdBonus = Math.min(room, (e.holdBonus || 0) + stretch);
+                }
             }
         }
     }
     if (e.bossId === "chrome" || e.bossId === "shadow" || e.bossId === "fallen" || e.bossId === "dark") e.seenHp = e.hp;
+    if (e.bossId === "dark" && e.intro && e.hp < e.maxHp && e.state !== "telegraph") {
+        e.intro = false;
+        e.clearGrace = Math.max(e.clearGrace || 0, VADER_CLEAR.grace);
+        e.holdCap = VADER_CLEAR.hold;
+        e.farT = 0;
+    }
     if (e.state === "approach") {
         if (e.clearGrace > 0) {
             e.clearGrace -= dt;
@@ -521,6 +541,10 @@ function updateBoss(e, game, dt) {
                 } else if (gap >= VADER_CLEAR.hurt && elapsed >= 0.16) {
                     e.tetherLeft = (e.tetherLeft || 0) + dt;
                 }
+                // Stay in the pocket through the tell. Freezing here used to
+                // hand a backpedal the whole room and reset the plate.
+                const step = vaderPocket(e, player);
+                slide(e, (step.mx * step.speed + e.kx) * dt, (step.my * step.speed + e.ky) * dt, game);
             }
         }
         if (e.telegraph && e.telegraph.kind === "storm") {
@@ -1047,16 +1071,23 @@ function drawTelegraph(ctx, e, cam) {
         ctx.strokeRect(8, -t.width / 2, t.len, t.width);
     } else if (t.kind === "tether") {
         if (t.hurt) {
-            ctx.globalAlpha = 0.24;
+            ctx.globalAlpha = t.clear ? 0.4 : 0.24;
             ctx.beginPath();
             ctx.arc(x, y, t.hurt, 0, Math.PI * 2);
             ctx.fill();
             ctx.globalAlpha = 1;
-            ctx.lineWidth = 3;
+            ctx.lineWidth = t.clear ? 4 : 3;
             ctx.strokeStyle = PALETTE.foam;
             ctx.beginPath();
             ctx.arc(x, y, t.hurt, 0, Math.PI * 2);
             ctx.stroke();
+            if (t.clear) {
+                ctx.strokeStyle = t.color;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(x, y, Math.max(6, t.hurt - 5), 0, Math.PI * 2);
+                ctx.stroke();
+            }
             ctx.strokeStyle = t.color;
             ctx.lineWidth = 2;
         }
