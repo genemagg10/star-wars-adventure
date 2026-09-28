@@ -28,6 +28,13 @@ const PALETTE = {
     cloak: "#2A1840",
     metal: "#8FA4C4",
     skin: "#F3D2B0",
+    // Wave D material reads. Existing keys above stay put.
+    chrome: "#C5D0E0",
+    armor: "#A8B0C0",
+    jacket: "#D4894A",
+    jacketDeep: "#A36532",
+    hair: "#F2D48A",
+    hairDeep: "#C9A15A",
     // Rose chrome for enemy blades only. Never a player saber, never a danger telegraph.
     foeBlade: "#D46A78",
 };

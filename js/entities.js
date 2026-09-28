@@ -1106,11 +1106,13 @@ function drawCompanion(ctx, game) {
 
 function drawEnemy(ctx, game, e) {
     const cam = game.camera;
-    const step = e.marching ? (Math.floor(game.time * 3) % 2) * 2 : 0;
+    const marchFrame = e.marching ? (Math.floor(game.time * 3) % 2) : 0;
+    const step = marchFrame * 2;
     const sx = e.x - cam.x;
     const sy = e.y - cam.y - step;
     shadow(ctx, sx, sy);
-    const key = e.kind === "boss" ? "boss-" + e.bossId : "guard";
+    let key = e.kind === "boss" ? "boss-" + e.bossId : "guard";
+    if (key === "guard" && marchFrame) key = "guard-step";
     const flip = e.facing.x < 0;
     Sprites.draw(ctx, key, sx, sy, flip);
     if (e.bossId === "shadow") {
