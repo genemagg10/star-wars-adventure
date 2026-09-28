@@ -159,11 +159,13 @@ const FLOOR_CYCLE = {
     dock: ["floor-dock", "floor-dock-b", "floor-dock-c"],
     // Open hull between the baked "=" runway rows. Gold stripes stay on those cells.
     hangar: ["floor-hangar", "floor-hangar-b", "floor-hangar-c"],
-    conduit: ["floor-u", "floor", "floor-b"],
+    // Panel plates. Quiet bevel twice, then a split plate, then corner bolts.
+    // Kylo Deck and the Inquisitor Conduit share this corridor kit.
+    conduit: ["floor-deck", "floor-deck", "floor-deck-b", "floor-deck-c"],
     // Dry grit twice, then a wet patch and a loose board.
     trash: ["floor-trash", "floor-trash", "floor-trash-b", "floor-trash-c"],
     gallery: ["floor-y", "floor", "floor-b"],
-    fallen: ["floor-c", "floor-b", "floor"],
+    fallen: ["floor-deck", "floor-deck", "floor-deck-b", "floor-deck-c"],
     core: ["floor-u", "floor", "floor-b"],
 };
 
@@ -258,6 +260,7 @@ const World = {
         const dock = sector.id === "dock";
         const hangar = sector.id === "hangar";
         const trash = sector.id === "trash";
+        const deck = sector.id === "fallen" || sector.id === "conduit";
         if (ch === "#") {
             if (dock) {
                 const port = ((tx * 3 + ty * 5) % 7) === 0;
@@ -266,6 +269,7 @@ const World = {
             }
             if (hangar) return this.hangarWallKey(tx, ty, sector, game);
             if (trash) return this.trashWallKey(tx, ty, sector);
+            if (deck) return this.deckWallKey(tx, ty, sector);
             return "wall";
         }
         if (ch === "+") return dock ? "pillar-dock" : "pillar";
@@ -281,6 +285,7 @@ const World = {
         if (ch === "E") {
             if (dock) return game.exitOpen() ? "airlock-open" : "airlock";
             if (hangar) return game.exitOpen() ? "hangar-exit-open" : "hangar-exit";
+            if (deck) return game.exitOpen() ? "exit-deck-open" : "exit-deck";
             return game.exitOpen() ? "exit-open" : "exit";
         }
         if (ch === "C") {
@@ -291,15 +296,20 @@ const World = {
             if (dock) return Math.floor(game.time * 3 + tx) % 2 === 0 ? "glow" : "glow-b";
             if (hangar) return Math.floor(game.time * 3 + tx) % 2 === 0 ? "hangar-stripe" : "hangar-stripe-b";
             if (trash) return Math.floor(game.time * 3 + tx) % 2 === 0 ? "trash-track" : "trash-track-b";
+            if (deck) return Math.floor(game.time * 3 + tx) % 2 === 0 ? "deck-guide" : "deck-guide-b";
             return Math.floor(game.time * 4 + tx) % 2 === 0 ? "stripe" : "stripe-b";
         }
         if (ch === "O") {
             const on = Math.floor(game.time * 3 + tx + ty) % 2 === 0;
             if (dock) return on ? "viewport-dock" : "viewport-dock-b";
             if (hangar) return on ? "viewport-hangar" : "viewport-hangar-b";
+            if (deck) return on ? "terminal-deck" : "terminal-deck-b";
             return on ? "viewport" : "viewport-b";
         }
-        if (ch === "I") return "pipe";
+        if (ch === "I") {
+            if (deck) return Math.floor(game.time * 2 + tx + ty) % 2 === 0 ? "hatch-deck" : "hatch-deck-b";
+            return "pipe";
+        }
         if (ch === "K") return "switch";
         if (ch === "L") return "switch";
         if (ch === "A") return "pad";
@@ -337,6 +347,20 @@ const World = {
         if (vert && !horiz) return "wall-trash-v";
         if (horiz && !vert) return "wall-trash";
         return "wall-trash-c";
+    },
+
+    // A beam with neighbors on both sides keeps the duct horizontal.
+    // A shaft with neighbors above and below turns it. Ends are elbows.
+    deckWallKey(tx, ty, sector) {
+        const tiles = sector.tiles;
+        const row = tiles[ty];
+        const left = row[tx - 1] === "#";
+        const right = row[tx + 1] === "#";
+        const up = tiles[ty - 1] && tiles[ty - 1][tx] === "#";
+        const down = tiles[ty + 1] && tiles[ty + 1][tx] === "#";
+        if (left && right) return "wall-deck";
+        if (up && down) return "wall-deck-v";
+        return "wall-deck-c";
     },
 
     draw(ctx, sector, camera, game) {
