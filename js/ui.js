@@ -215,8 +215,16 @@ const UI = {
         if (panel) {
             panel.classList.toggle("loud", !!opts.loud);
             panel.classList.toggle("power-drop", !!opts.powerDrop);
+            panel.classList.toggle("trophy", !!opts.trophy);
+            panel.classList.toggle("fail", !!opts.fail);
+        }
+        const screen = document.getElementById("screen-card");
+        if (screen) {
+            screen.classList.toggle("is-trophy", !!opts.trophy);
+            screen.classList.toggle("is-fail", !!opts.fail);
         }
         this.paintCelebrate(opts);
+        this.paintSparkBurst(!!opts.trophy);
         const line = document.getElementById("card-line");
         if (opts.line) {
             line.textContent = opts.line;
@@ -304,13 +312,22 @@ const UI = {
             const face = Sprites.cache["little"] || Sprites.cache["grogu-face"];
             if (face) gg.drawImage(face, 0, 0, 48, 48);
         }
+    },
+
+    paintSparkBurst(on) {
         const sparks = document.getElementById("card-sparks");
+        if (!sparks) return;
         sparks.innerHTML = "";
-        for (let i = 0; i < 14; i++) {
+        sparks.classList.toggle("is-on", !!on);
+        if (!on) return;
+        const count = 16;
+        for (let i = 0; i < count; i++) {
             const bit = document.createElement("i");
-            bit.style.left = (8 + Math.random() * 84) + "%";
-            bit.style.animationDelay = (Math.random() * 0.28) + "s";
-            bit.style.background = i % 3 === 0 ? (cele.saberColor || PALETTE.gold) : PALETTE.gold;
+            const ang = (Math.PI * 2 * i) / count;
+            const dist = 72 + (i % 3) * 26;
+            bit.style.setProperty("--dx", Math.round(Math.cos(ang) * dist) + "px");
+            bit.style.setProperty("--dy", Math.round(Math.sin(ang) * dist) + "px");
+            bit.style.animationDelay = ((i % 4) * 0.025) + "s";
             sparks.appendChild(bit);
         }
     },
@@ -341,7 +358,12 @@ const UI = {
         this.cardOpen = false;
         this.quickRetry = false;
         this.primary = null;
-        document.getElementById("screen-card").classList.add("hidden");
+        const screen = document.getElementById("screen-card");
+        screen.classList.add("hidden");
+        screen.classList.remove("is-trophy", "is-fail");
+        const panel = screen.querySelector(".panel");
+        if (panel) panel.classList.remove("trophy", "fail");
+        this.paintSparkBurst(false);
     },
 
     activatePrimary() {
@@ -414,24 +436,27 @@ const UI = {
     },
 
     drawPowerGems(ctx, game) {
-        const colors = {
-            push: PALETTE.blue,
-            throw: PALETTE.purple,
-            lightning: PALETTE.lightning,
-            rock: PALETTE.gold,
-        };
-        const gap = 22;
-        const y = 64;
+        const gap = 42;
+        const y = 58;
+        const half = 19;
         const start = CANVAS_W / 2 - ((POWER_SLOTS.length - 1) * gap) / 2;
         for (let i = 0; i < POWER_SLOTS.length; i++) {
             const id = POWER_SLOTS[i];
             const x = start + i * gap;
             const owned = game.owns(id);
             const active = owned && game.activePower === id;
-            const r = active ? 8 : 5;
-            diamond(ctx, x, y, r + 2, PALETTE.ink);
-            diamond(ctx, x, y, r, owned ? colors[id] : PALETTE.panel);
-            if (!owned) diamond(ctx, x, y, 2, PALETTE.hull);
+            const ring = !owned ? PALETTE.panel : (active ? PALETTE.gold : PALETTE.purple);
+            const fill = !owned ? PALETTE.panel : PALETTE.cloak;
+            ctx.fillStyle = PALETTE.ink;
+            ctx.fillRect(x - half, y - half, half * 2, half * 2);
+            ctx.fillStyle = ring;
+            ctx.fillRect(x - half + 1, y - half + 1, half * 2 - 2, half * 2 - 2);
+            ctx.fillStyle = fill;
+            ctx.fillRect(x - 16, y - 16, 32, 32);
+            ctx.save();
+            if (!owned) ctx.globalAlpha = 0.72;
+            Sprites.draw(ctx, "chip-" + id, x, y, false);
+            ctx.restore();
             let cd = 0;
             let max = POWER_COOLDOWN;
             if (game.mode === "chase" && id === "push" && game.chase) {
@@ -442,8 +467,8 @@ const UI = {
             }
             if (!owned || cd <= 0 || max <= 0) continue;
             const ready = 1 - Math.min(1, cd / max);
-            const barW = 14;
-            const barY = y + r + 4;
+            const barW = 22;
+            const barY = y + half + 3;
             ctx.fillStyle = PALETTE.ink;
             ctx.fillRect(x - barW / 2, barY, barW, 3);
             ctx.fillStyle = PALETTE.foam;
