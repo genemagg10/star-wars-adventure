@@ -137,7 +137,7 @@ const SoundSystem = {
         this.tone(780, 0.12, "square", 0.16);
     },
 
-    unlock() {
+    learned() {
         this.tone(523, 0.1, "triangle", 0.24);
         this.tone(659, 0.12, "triangle", 0.22);
         this.tone(784, 0.16, "triangle", 0.22);

@@ -422,6 +422,7 @@ const Game = {
             this.grantPower("rock");
             this.save();
             SoundSystem.unlock();
+            SoundSystem.learned();
             this.openCard({
                 kicker: "Salvage chest",
                 title: "Rock Toss",
@@ -518,6 +519,7 @@ const Game = {
             this.grantPower("push");
             this.save();
             SoundSystem.unlock();
+            SoundSystem.learned();
             this.openCard({
                 kicker: "Power",
                 title: "Force Push",
@@ -534,6 +536,7 @@ const Game = {
             this.grantPower("throw");
             this.save();
             SoundSystem.unlock();
+            SoundSystem.learned();
             this.openCard({
                 kicker: "Power",
                 title: "Saber Throw",
@@ -552,6 +555,7 @@ const Game = {
             }
             this.companionCd = 2;
             this.save();
+            SoundSystem.unlock();
             SoundSystem.bond();
             this.openCard({
                 kicker: "Companion",
@@ -568,6 +572,7 @@ const Game = {
             if (missedRock) this.grantPower("rock");
             this.save();
             SoundSystem.unlock();
+            SoundSystem.learned();
             const body = missedRock
                 ? "Press 3, tap gem 3, or hold Power to switch, for Lightning. The salvage chest could not be opened, so Rock Toss is yours as well. Press 4, then use it. This chase lane is sealed. The TIE fighters never launch."
                 : "Press 3, tap gem 3, or hold Power to switch, for Lightning. Lavender light answers. This chase lane is sealed. The TIE fighters never launch.";
@@ -606,6 +611,7 @@ const Game = {
         this.save();
         const notes = [ACHIEVEMENTS.saved];
         if (this.sticker) notes.push(ACHIEVEMENTS.sticker);
+        SoundSystem.unlock();
         SoundSystem.win();
         this.openCard({
             kicker: "Achievement",
