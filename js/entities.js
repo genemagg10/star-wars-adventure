@@ -79,7 +79,8 @@ function commitBossAttack(e, game) {
         const opening = !!e.intro;
         const width = opening ? PHASMA_OPEN.laneWidth : PHASMA_CLEAR.laneWidth;
         e.intro = false;
-        if (opening) e.clearGrace = PHASMA_CLEAR.grace;
+        e.clearGrace = PHASMA_CLEAR.grace;
+        e.hugT = 0;
         const dash = opening ? PHASMA_OPEN.dash : PHASMA_CLEAR.dash;
         const dashT = opening ? PHASMA_OPEN.dashTime : PHASMA_CLEAR.dashTime;
         e.dash = { x: face.x * dash, y: face.y * dash, t: dashT, half: width / 2 };
@@ -146,7 +147,21 @@ function updateBoss(e, game, dt) {
     if (e.state === "approach") {
         if (e.clearGrace > 0) {
             e.clearGrace -= dt;
-            slide(e, e.kx * dt, e.ky * dt, game);
+            const back = normalize(player.x - e.x, player.y - e.y);
+            const gap = dist(e.x, e.y, player.x, player.y);
+            let mx = 0;
+            let my = 0;
+            let speed = 0;
+            if (e.bossId === "chrome" && !e.intro && gap < PHASMA_CLEAR.standoff && (back.x || back.y)) {
+                mx = -back.x;
+                my = -back.y;
+                speed = e.speed * PHASMA_CLEAR.approach;
+            }
+            slide(e, (mx * speed + e.kx) * dt, (my * speed + e.ky) * dt, game);
+            if (e.clearGrace <= 0 && e.bossId === "chrome" && !e.intro) {
+                e.timer = PHASMA_CLEAR.hold;
+                e.hugT = 0;
+            }
         } else {
             const dir = normalize(player.x - e.x, player.y - e.y);
             if (dir.x || dir.y) e.facing = dir;
@@ -174,9 +189,26 @@ function updateBoss(e, game, dt) {
                 }
             }
             slide(e, (mx * speed + e.kx) * dt, (my * speed + e.ky) * dt, game);
-            e.timer -= dt;
             const reach = e.bossId === "hooded" ? 320 : e.bossId === "shadow" ? 250 : e.bossId === "chrome" ? 200 : e.bossId === "dark" ? 168 : 148;
-            if (e.timer <= 0 && dist(e.x, e.y, player.x, player.y) < reach) startTelegraph(e, game);
+            const gapNow = dist(e.x, e.y, player.x, player.y);
+            let ready = false;
+            if (e.bossId === "chrome" && !e.intro) {
+                const inner = PHASMA_CLEAR.standoff - 10;
+                if (gapNow < inner) {
+                    e.hugT = (e.hugT || 0) + dt;
+                    ready = e.hugT >= PHASMA_CLEAR.hug;
+                } else if (gapNow < PHASMA_CLEAR.standoff + 16) {
+                    e.hugT = 0;
+                    e.timer -= dt;
+                    ready = e.timer <= 0;
+                } else {
+                    e.hugT = 0;
+                }
+            } else {
+                e.timer -= dt;
+                ready = e.timer <= 0;
+            }
+            if (ready && gapNow < reach) startTelegraph(e, game);
         }
     } else if (e.state === "telegraph") {
         if (e.telegraph && e.telegraph.kind === "tether") {
@@ -368,6 +400,7 @@ const Entities = {
             timer: bossId === "chrome" ? PHASMA_OPEN.delay : 0.7,
             intro: bossId === "chrome",
             clearGrace: 0,
+            hugT: 0,
             telegraph: null,
             dash: null,
             blink: null,
