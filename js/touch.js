@@ -13,6 +13,7 @@ const TouchControls = {
     flick: null,
 
     init() {
+        this.guardZoom();
         const stick = document.getElementById("stick");
         const nub = document.getElementById("nub");
         if (!stick || !nub) return;
@@ -258,6 +259,42 @@ const TouchControls = {
             const state = owned ? "unlocked" : "locked";
             chip.setAttribute("aria-label", POWERS[id].slot + " " + POWERS[id].name + ", " + state);
         }
+    },
+
+    // iOS Safari ignores user-scalable=no and still double-tap zooms a button
+    // that only sets touch-action: none. manipulation is the opt-out, and a
+    // canceled touch is what actually stops the gesture recognizer.
+    guardZoom() {
+        if (this.zoomGuard) return;
+        this.zoomGuard = true;
+        const zone = "#gameCanvas, #stick, #touch-actions, #btn-pause-touch, #power-chips, #screen-crawl, #rotate-gate";
+        const inZone = (node) => !!(node && node.closest && node.closest(zone));
+        let lastEnd = { t: 0, x: 0, y: 0 };
+
+        document.addEventListener("touchstart", (e) => {
+            if (inZone(e.target)) e.preventDefault();
+        }, { passive: false, capture: true });
+
+        document.addEventListener("touchmove", (e) => {
+            if (e.touches.length > 1 || inZone(e.target)) e.preventDefault();
+        }, { passive: false, capture: true });
+
+        document.addEventListener("touchend", (e) => {
+            const now = Date.now();
+            const touch = e.changedTouches && e.changedTouches[0];
+            const near = touch && Math.hypot(touch.clientX - lastEnd.x, touch.clientY - lastEnd.y) <= 28;
+            const repeat = near && now - lastEnd.t <= 320;
+            if (touch) lastEnd = { t: now, x: touch.clientX, y: touch.clientY };
+            if (repeat || inZone(e.target)) e.preventDefault();
+        }, { passive: false, capture: true });
+
+        document.addEventListener("dblclick", (e) => {
+            e.preventDefault();
+        }, true);
+
+        const stopGesture = (e) => e.preventDefault();
+        document.addEventListener("gesturestart", stopGesture, { passive: false });
+        document.addEventListener("gesturechange", stopGesture, { passive: false });
     },
 
     takeEdges() {
