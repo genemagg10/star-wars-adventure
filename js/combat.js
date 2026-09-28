@@ -50,12 +50,11 @@ function kyloHoldBreath(game) {
     return false;
 }
 
-// Same idea in the Throne Gallery. The orange ring is not a free hit.
-// Once he is holding in reach, a saber or Force cast connects even if
-// the stick still points at the dodge.
+// Same idea in the Throne Gallery. The opening tether is not a free hit.
+// After that, the hold and the later orange ring both connect, even if
+// the stick still points at the dodge. That ring is the cue a kid swings at.
 function darkPunish(e) {
     if (!e || !e.alive || e.bossId !== "dark" || e.intro) return false;
-    if (e.state === "telegraph") return false;
     return true;
 }
 
@@ -75,13 +74,15 @@ function darkAim(game, source, maxDist) {
     return best;
 }
 
-// During the finish hold, a heart from the tug or the gallery troopers
-// should not chain. The first tether still uses the short breather.
+// During the finish hold and the later orange ring, a heart from the tug
+// or the gallery troopers should not chain. The first tether still uses
+// the short breather.
 function vaderHoldBreath(game) {
     const list = game.enemies || [];
     for (let i = 0; i < list.length; i++) {
         const e = list[i];
         if (!e.alive || e.bossId !== "dark" || e.intro) continue;
+        if (e.state === "telegraph") return true;
         if (e.state !== "approach" || e.clearGrace > 0) continue;
         return true;
     }
@@ -201,7 +202,8 @@ const Combat = {
             const d = Math.hypot(dx, dy) || 1;
             const open = shadowPunish(e) || fallenPunish(e) || darkPunish(e);
             if (open) {
-                if (d >= range + e.r + 18) continue;
+                const pad = darkPunish(e) ? VADER_CLEAR.swingPad : 18;
+                if (d >= range + e.r + pad) continue;
             } else if (d >= range + e.r * 0.5 + 6) continue;
             const dot = (dx / d) * p.facing.x + (dy / d) * p.facing.y;
             if (!open && dot <= dotNeed) continue;
@@ -367,7 +369,8 @@ const Combat = {
             const d = Math.hypot(dx, dy) || 1;
             const open = team !== "foe" && (shadowPunish(t) || fallenPunish(t) || darkPunish(t));
             if (open) {
-                if (d > range + (t.r || 0) + 20) continue;
+                const pad = darkPunish(t) ? VADER_CLEAR.swingPad : 20;
+                if (d > range + (t.r || 0) + pad) continue;
             } else if (d > range + (t.r || 0)) continue;
             const dot = (dx / d) * dir.x + (dy / d) * dir.y;
             if (!open && dot < 0.18) continue;

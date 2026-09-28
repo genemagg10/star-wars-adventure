@@ -270,32 +270,40 @@ const VADER_OPEN = {
     reach: 168,
 };
 
-// Finish window. After that tug he stands in saber reach, just outside the
-// orange ring, and the hold runs long enough to spend the hit points still
-// on the plate (the stall was around 28 of 36). A saber or Force hit stretches
-// the hold, and it connects even if they stopped and the stick still points
-// at the dodge. Stepping out of a later ring shoves, with a short breather,
-// and does not take a heart. Standing in the ring the whole time still takes
-// one, then a longer breather so the gallery troopers cannot turn that heart
-// into a spiral.
+// Finish window, stronger than the first pass. That pass still stalled near
+// 30 of 36: the hold ticked away while he was outside saber reach, then the
+// next tether froze him and a backpedal opened the gap again. He now stays
+// on them through the tell, the hold only runs once a swing can land, and
+// the later orange ring is itself a hit window (the cue a kid actually
+// swings at). Once the plate is down to 30, the quiet between rings
+// shortens so that cue comes back. The ring drawn on the floor is only
+// the hug at his feet.
+// A saber or Force hit stretches the hold, and it connects even if the
+// stick still points at the dodge. Stepping out of the hug shoves, with a
+// breather, and does not take a heart. Standing in the hug the whole time
+// still takes one, then a longer breather so the gallery troopers cannot
+// turn that heart into a spiral.
 const VADER_CLEAR = {
-    telegraph: 1.2,
-    hurt: 36,
-    grace: 0.55,
-    pocket: 44,
-    leash: 120,
-    patience: 4.0,
-    hold: 12,
-    hitStretch: 2.0,
-    stretchCap: 18,
-    chase: 160,
-    leave: 0.18,
-    lateEntry: 0.4,
-    earlyGrace: 0.2,
-    shoveInvuln: 1.8,
-    clipInvuln: 2.6,
-    reach: 210,
-    aim: 220,
+    telegraph: 1.5,
+    hurt: 22,
+    grace: 0.35,
+    pocket: 46,
+    leash: 100,
+    patience: 6.5,
+    hold: 16,
+    lateHold: 4.5,
+    hitStretch: 2.8,
+    stretchCap: 24,
+    chase: 250,
+    leave: 0.12,
+    lateEntry: 0.7,
+    earlyGrace: 0.28,
+    shoveInvuln: 2.4,
+    clipInvuln: 4.2,
+    openBreath: 3.0,
+    swingPad: 56,
+    reach: 240,
+    aim: 260,
 };
 
 const ACHIEVEMENTS = {
