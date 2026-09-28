@@ -313,6 +313,51 @@ const VADER_CLEAR = {
     aim: 260,
 };
 
+// First storm. The bolt is the teach: it still takes a heart if you stand
+// in it. The tell is long enough to step off the paint.
+const EMPEROR_OPEN = {
+    delay: 0.85,
+    telegraph: 1.15,
+    len: 176,
+    reach: 320,
+};
+
+// Finish window. The old loop was a storm every couple of seconds from
+// across the room, and the plate stuck at 37 of 42: one Lightning landed,
+// then the mirrored bolt and the two troopers spent the hearts before a
+// second swing could. After that first storm he steps into saber reach and
+// holds. A saber or Force hit stretches the hold, and it connects even if
+// the stick still points at the dodge. Stepping off a later storm shoves,
+// with a short breather, and does not take a heart. Standing in the paint
+// the whole time still takes one, then a longer breather, and the troopers
+// hold fire so that heart cannot chain. Once the plate is at 10 or below,
+// each hit bites harder and the next quiet is longer, so the last hearts
+// can be spent. Lightning stays a chip from full health.
+const EMPEROR_CLEAR = {
+    telegraph: 1.5,
+    len: 176,
+    lane: 12,
+    grace: 0.5,
+    pocket: 42,
+    leash: 118,
+    patience: 4.8,
+    hold: 13,
+    finishHp: 10,
+    finishHold: 18,
+    finishBonus: 2,
+    hitStretch: 2.2,
+    stretchCap: 22,
+    chase: 200,
+    leave: 0.2,
+    lateEntry: 0.45,
+    earlyGrace: 0.22,
+    shoveInvuln: 1.8,
+    breath: 3.4,
+    reach: 300,
+    aim: 200,
+    swingPad: 24,
+};
+
 const ACHIEVEMENTS = {
     saved: "Death Star Saved",
     sticker: "Chewbacca-bot Sticker",
