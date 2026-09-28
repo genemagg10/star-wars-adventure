@@ -318,7 +318,7 @@ const World = {
         }
         if (ch === "C") {
             if (trash) return game.owns("rock") ? "floor-trash" : "chest-trash";
-            return game.owns("rock") ? "floor" : "chest";
+            return game.owns("rock") ? "chest-open" : "chest";
         }
         if (ch === "=") {
             if (dock) return Math.floor(game.time * 3 + tx) % 2 === 0 ? "glow" : "glow-b";
@@ -342,7 +342,10 @@ const World = {
             if (deck) return Math.floor(game.time * 2 + tx + ty) % 2 === 0 ? "hatch-deck" : "hatch-deck-b";
             if (gallery) return "banner-gallery";
             if (core) return "rod-core";
-            return "pipe";
+            const pulse = Math.floor(game.time * 2 + tx + ty) % 2 === 0;
+            if (hangar) return pulse ? "hatch-hangar" : "hatch-hangar-b";
+            if (trash) return pulse ? "hatch-trash" : "hatch-trash-b";
+            return pulse ? "pipe" : "pipe-b";
         }
         if (ch === "K") return "switch";
         if (ch === "L") return "switch";
