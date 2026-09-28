@@ -67,6 +67,11 @@ const CHASE_LANES = {
     },
 };
 
+const MOVE_CODES = {
+    KeyW: 1, KeyA: 1, KeyS: 1, KeyD: 1,
+    ArrowUp: 1, ArrowDown: 1, ArrowLeft: 1, ArrowRight: 1,
+};
+
 const Game = {
     mode: "menu",
     time: 0,
@@ -75,6 +80,7 @@ const Game = {
     paused: false,
     down: {},
     pressed: {},
+    moveSticky: {},
     camera: { x: 0, y: 0 },
     shake: 0,
     flash: 0,
@@ -156,6 +162,7 @@ const Game = {
             if (e.repeat) return;
             this.down[e.code] = true;
             this.pressed[e.code] = true;
+            if (MOVE_CODES[e.code]) this.moveSticky[e.code] = 0.16;
             if (UI.cardOpen && (e.code === "Enter" || e.code === "KeyE")) {
                 this.pressed[e.code] = false;
                 UI.activatePrimary();
@@ -191,6 +198,7 @@ const Game = {
             requestAnimationFrame((t) => this.loop(t));
             return;
         }
+        this.decaySticky(dt);
         const input = this.readInput();
         if (this.mode === "play") this.updatePlay(dt, input);
         else if (this.mode === "chase") this.updateChase(dt, input);
@@ -216,15 +224,16 @@ const Game = {
                 }
             }
         }
+        const step = (code) => this.down[code] || (this.moveSticky[code] > 0);
         let x = 0;
         let y = 0;
-        if (this.down.KeyA || this.down.ArrowLeft) x -= 1;
-        if (this.down.KeyD || this.down.ArrowRight) x += 1;
-        if (this.down.KeyW || this.down.ArrowUp) y -= 1;
-        if (this.down.KeyS || this.down.ArrowDown) y += 1;
+        if (step("KeyA") || step("ArrowLeft")) x -= 1;
+        if (step("KeyD") || step("ArrowRight")) x += 1;
+        if (step("KeyW") || step("ArrowUp")) y -= 1;
+        if (step("KeyS") || step("ArrowDown")) y += 1;
         let move = { x: 0, y: 0 };
         if (x || y) move = normalize(x, y);
-        else if (Math.hypot(TouchControls.vec.x, TouchControls.vec.y) > 0.18) {
+        else if (Math.hypot(TouchControls.vec.x, TouchControls.vec.y) > 0.12) {
             move = { x: TouchControls.vec.x, y: TouchControls.vec.y };
         }
         return {
@@ -233,6 +242,14 @@ const Game = {
             power: !!pressed.KeyQ || edges.power,
             interact: !!pressed.KeyE || edges.interact,
         };
+    },
+
+    decaySticky(dt) {
+        const keys = Object.keys(this.moveSticky);
+        for (let i = 0; i < keys.length; i++) {
+            const k = keys[i];
+            if (this.moveSticky[k] > 0) this.moveSticky[k] = Math.max(0, this.moveSticky[k] - dt);
+        }
     },
 
     updatePlay(dt, input) {
@@ -439,6 +456,10 @@ const Game = {
     refreshObjective() {
         const s = this.sector;
         if (!s) return;
+        if (s.id === "dock" && s.lesson && !this.owns("push")) {
+            this.objective = "Learn Force Push";
+            return;
+        }
         if (s.bossId === "hooded" && this.missingPowers().length) {
             this.objective = "Earn four Force powers";
             return;
@@ -479,7 +500,8 @@ const Game = {
         this.hint = null;
         if (!p || !s) return;
         const near = (pt, r) => pt && dist(p.x, p.y, pt.x, pt.y) < r;
-        if (near(s.chest, 44) && !this.owns("rock")) this.hint = { x: s.chest.x, y: s.chest.y, label: "Salvage chest" };
+        if (near(s.lesson, 44) && !this.owns("push")) this.hint = { x: s.lesson.x, y: s.lesson.y, label: "Force terminal" };
+        else if (near(s.chest, 44) && !this.owns("rock")) this.hint = { x: s.chest.x, y: s.chest.y, label: "Salvage chest" };
         else if (near(s.panel, 44) && !this.secretOpen) this.hint = { x: s.panel.x, y: s.panel.y, label: "Side hatch" };
         else if (near(s.sticker, 44) && this.secretOpen && !this.sticker) this.hint = { x: s.sticker.x, y: s.sticker.y, label: "Sticker" };
         else if (near(s.exit, 44)) this.hint = { x: s.exit.x, y: s.exit.y, label: this.exitOpen() ? "North lock" : "North lock shut" };
@@ -498,6 +520,7 @@ const Game = {
     interactContext() {
         if (this.mode !== "play" || !this.hint) return null;
         const label = this.hint.label;
+        if (label === "Force terminal") return { icon: "◎", short: "Force terminal" };
         if (label === "Salvage chest") return { icon: "▣", short: "Salvage chest" };
         if (label === "Side hatch") return { icon: "▤", short: "Side hatch" };
         if (label === "Sticker") return { icon: "✶", short: "Sticker" };
@@ -511,6 +534,22 @@ const Game = {
         const p = this.player;
         const s = this.sector;
         const near = (pt, r) => pt && dist(p.x, p.y, pt.x, pt.y) < r;
+        if (near(s.lesson, 44) && !this.owns("push")) {
+            this.grantPower("push");
+            this.save();
+            SoundSystem.unlock();
+            SoundSystem.learned();
+            this.openCard({
+                kicker: "Docking Ring",
+                title: "Force Push",
+                loud: true,
+                powerDrop: true,
+                body: "The blue terminal teaches Force Push. Press 1, tap gem 1, or hold Power. A short tap shoves whoever is in front of you. Try it on the stormtroopers, then go meet Captain Phasma.",
+                buttons: [{ label: "Got it", onClick: () => this.closeCard() }],
+            });
+            this.refreshObjective();
+            return;
+        }
         if (near(s.chest, 44) && !this.owns("rock")) {
             this.grantPower("rock");
             this.save();
@@ -619,15 +658,18 @@ const Game = {
 
     openReward(id) {
         if (id === "chrome") {
+            const held = this.owns("push");
             this.grantPower("push");
             this.save();
             SoundSystem.unlock();
             SoundSystem.learned();
             this.openCard({
                 kicker: "Power",
-                title: "Force Push",
+                title: held ? "Force Push confirmed" : "Force Push",
                 loud: true,
-                body: "Captain Phasma's core is yours. Press 1, tap gem 1, or hold Power to switch. Then use Force Push.",
+                body: held
+                    ? "You learned Force Push on the Docking Ring. Captain Phasma's core confirms it. Press 1, tap gem 1, or hold Power. The shove is yours."
+                    : "Captain Phasma's core is yours. Press 1, tap gem 1, or hold Power to switch. Then use Force Push.",
                 powerDrop: true,
                 buttons: [
                     { label: "Chase the lane", onClick: () => this.startChase("hangar") },

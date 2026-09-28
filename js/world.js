@@ -29,6 +29,7 @@ function deckDock() {
     const g = makeGrid(54, 36);
     [[8, 8], [8, 24], [42, 8], [42, 24], [22, 16], [32, 16]].forEach((p) => fillCell(g, p[0], p[1], 2, 2, "+"));
     putCell(g, 27, 30, "P");
+    putCell(g, 27, 26, "L");
     putCell(g, 27, 2, "E");
     putCell(g, 16, 18, "G");
     putCell(g, 38, 20, "G");
@@ -187,6 +188,7 @@ const World = {
         let chest = null;
         let panel = null;
         let sticker = null;
+        let lesson = null;
         for (let y = 0; y < h; y++) {
             for (let x = 0; x < w; x++) {
                 const ch = tiles[y][x];
@@ -205,6 +207,7 @@ const World = {
                 }
                 else if (ch === "C") chest = p;
                 else if (ch === "K") panel = p;
+                else if (ch === "L") lesson = p;
                 else if (ch === "S") { sticker = p; tiles[y][x] = "."; }
             }
         }
@@ -235,6 +238,7 @@ const World = {
             chest: chest,
             panel: panel,
             sticker: sticker,
+            lesson: lesson,
             guards: guards,
             accent: spec.accent || PALETTE.blue,
         };
@@ -259,6 +263,7 @@ const World = {
         if (ch === "O") return Math.floor(game.time * 3 + tx + ty) % 2 === 0 ? "viewport" : "viewport-b";
         if (ch === "I") return "pipe";
         if (ch === "K") return "switch";
+        if (ch === "L") return "switch";
         if (ch === "A") return "pad";
         const cycle = FLOOR_CYCLE[sector.id] || FLOOR_CYCLE.dock;
         const n = Math.abs((tx * 13 + ty * 7) % cycle.length);
@@ -324,6 +329,10 @@ const World = {
         if (sector.exit) {
             const exitT = worldToTile(sector.exit.x, sector.exit.y);
             if (!reach(spawnT.x, spawnT.y, exitT.x, exitT.y, false)) issues.push(spec.id + " exit blocked");
+        }
+        if (sector.lesson) {
+            const lessonT = worldToTile(sector.lesson.x, sector.lesson.y);
+            if (!reach(spawnT.x, spawnT.y, lessonT.x, lessonT.y, false)) issues.push(spec.id + " lesson blocked");
         }
         if (sector.chest) {
             const chestT = worldToTile(sector.chest.x, sector.chest.y);

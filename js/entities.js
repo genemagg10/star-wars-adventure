@@ -37,7 +37,7 @@ function startTelegraph(e, game) {
     e.state = "telegraph";
     const face = { x: e.facing.x, y: e.facing.y };
     if (e.bossId === "chrome") {
-        e.timer = 0.62;
+        e.timer = 1.05;
         e.telegraph = { kind: "lane", dir: face, len: 148, width: 26, color: PALETTE.foam };
         SoundSystem.swing();
     } else if (e.bossId === "shadow") {
@@ -69,7 +69,7 @@ function commitBossAttack(e, game) {
     const player = game.player;
     const face = e.facing || { x: 1, y: 0 };
     if (e.bossId === "chrome") {
-        e.dash = { x: face.x * 300, y: face.y * 300, t: 0.28 };
+        e.dash = { x: face.x * 190, y: face.y * 190, t: 0.36 };
     } else if (e.bossId === "shadow") {
         if (e.blink && !game.circleBlocked(e.blink.x, e.blink.y, e.r)) {
             e.x = e.blink.x;

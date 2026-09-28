@@ -31,7 +31,8 @@ Open `http://localhost:8080`. A local server is the reliable way to run it. The 
 
 Turn the phone sideways. A stick sits on the left. Attack and Power sit on the right.
 
-- Attack, Power, and Interact wear symbols. Power dims until you own a Force power. Interact dims until something is in reach, then it shows the salvage chest, the side hatch, the north lock, or a chase pad.
+- Attack, Power, and Interact wear symbols. Power dims until you own a Force power. Interact dims until something is in reach, then it shows the Force terminal, the salvage chest, the side hatch, the north lock, or a chase pad.
+- Hold WASD to walk. A quick tap still takes a short step.
 - A strip of **four slots** stays on screen while you walk a deck: Push, Throw, Lightning, Rock, the same as keys 1–4. Locked slots stay dim. The lit slot is the one a short tap on Power will use. Hold Power to cycle.
 - Tap a lit gem **1–4** to select that power. Hold **Power** to cycle to the next unlocked power. A short tap on **Power** uses the lit one. The newest power still selects itself when you learn it.
 - The same four gems sit on the canvas under the objective. The lit gem grows, and a ring fills in while that power cools down.
@@ -46,8 +47,8 @@ Lightsaber colors are blue, green, purple, yellow, white, and orange. Hearts are
 
 1. Title, then pick Luke Skywalker, Rey, or Chewbacca.
 2. Pick a lightsaber color.
-3. Docking Ring — stormtroopers.
-4. Phasma Hangar — defeat Captain Phasma to learn **Force Push**. The Hangar Run is a real chase: steer an X-wing, shoot TIE fighters, and break through. You can skip it.
+3. Docking Ring — a blue terminal just north of the landing teaches **Force Push**. Interact, then try it on the stormtroopers. You can walk past the terminal.
+4. Phasma Hangar — Captain Phasma paints a lane, then rushes. Step off the lane. She is the first boss and leaves a long opening between rushes. If you already learned Force Push, her card confirms it. If you skipped the terminal, she still unlocks Force Push. The Hangar Run is a real chase: steer an X-wing, shoot TIE fighters, and break through. You can skip it.
 5. Inquisitor Conduit — defeat the Inquisitor to learn **Saber Throw**.
 6. Throne Gallery — defeat Darth Vader. **Grogu** (Baby Yoda) joins. No Force power from this fight. Vader's bay is a second chase: slower shuttles in two columns. You can skip it.
 7. Trash Compactor — open the salvage chest to learn **Rock Toss**. A side hatch hides a Chewbacca-bot sticker.
@@ -60,7 +61,7 @@ The three flights share one chase. A lane only changes how long it lasts, how cr
 
 Force power keys stay fixed:
 
-1. Force Push — Captain Phasma
+1. Force Push — the Docking Ring terminal, confirmed by Captain Phasma. Skipping the terminal still unlocks it from her.
 2. Saber Throw — the Inquisitor
 3. Lightning — Kylo Ren
 4. Rock Toss — the salvage chest between Darth Vader and Kylo Ren

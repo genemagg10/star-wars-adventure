@@ -38,7 +38,7 @@ const Combat = {
         const p = game.player;
         if (!p || game.frozen || p.invuln > 0 || p.hp <= 0) return;
         p.hp -= dmg;
-        p.invuln = 0.95;
+        p.invuln = 1.2;
         const away = normalize(p.x - fromX, p.y - fromY);
         p.kx = away.x * 180;
         p.ky = away.y * 180;
@@ -107,10 +107,10 @@ const Combat = {
             const d = Math.hypot(dx, dy) || 1;
             let landed = false;
             if (hero.melee === "spin") {
-                landed = d < hero.range + e.r;
-            } else if (d < hero.range + e.r * 0.35) {
+                landed = d < hero.range + e.r + 4;
+            } else if (d < hero.range + e.r * 0.5 + 6) {
                 const dot = (dx / d) * p.facing.x + (dy / d) * p.facing.y;
-                landed = dot > 0.34;
+                landed = dot > 0.22;
             }
             if (!landed) continue;
             this.hurtEnemy(game, e, hero.damage);
