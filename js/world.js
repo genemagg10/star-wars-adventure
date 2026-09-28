@@ -31,8 +31,9 @@ function deckDock() {
     putCell(g, 27, 30, "P");
     putCell(g, 27, 26, "L");
     putCell(g, 27, 2, "E");
-    putCell(g, 16, 18, "G");
-    putCell(g, 38, 20, "G");
+    // North of the pillars, off the Force Push terminal, so the landing stays readable.
+    putCell(g, 16, 9, "G");
+    putCell(g, 37, 9, "G");
     placeToys(g, 14, 12, 40, 14, 24, 22, 6);
     return g;
 }

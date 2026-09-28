@@ -124,6 +124,19 @@ const GUARD_STATS = {
     range: 150,
 };
 
+// Docking Ring only, and only until Force Push is learned.
+// One stormtrooper, easier to clear on the way to the blue terminal.
+const DOCK_TEACH = {
+    hp: 4,
+    speed: 36,
+    shot: 3.4,
+    range: 96,
+    sight: 72,
+    dmg: 1,
+    boltSpeed: 90,
+    avoid: 128,
+};
+
 const BOSS_STATS = {
     chrome: { name: "Captain Phasma", hp: 12, speed: 44, gap: 2.15 },
     shadow: { name: "Inquisitor", hp: 30, speed: 78, gap: 1.2 },

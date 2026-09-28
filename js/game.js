@@ -448,10 +448,12 @@ const Game = {
         const missing = spec.bossId === "hooded" ? this.missingPowers() : [];
         if (!bossDown && missing.length === 0) {
             const guardList = this.sector.guards;
-            const guardCap = spec.id === "hangar" ? 1 : guardList.length;
+            const teachDock = spec.id === "dock" && !this.owns("push");
+            // Hangar stays at one add. The Docking Ring teaches with one softer trooper until Force Push.
+            const guardCap = spec.id === "hangar" ? 1 : (teachDock ? 1 : guardList.length);
             for (let i = 0; i < guardList.length && i < guardCap; i++) {
                 const g = guardList[i];
-                this.enemies.push(Entities.makeGuard(g.x, g.y));
+                this.enemies.push(Entities.makeGuard(g.x, g.y, teachDock ? this.dockTeachOpts() : null));
             }
             if (this.sector.boss) {
                 this.enemies.push(Entities.makeBoss(spec.bossId, this.sector.boss.x, this.sector.boss.y, this.powers));
@@ -541,6 +543,23 @@ const Game = {
     chestBlocksExit() {
         const s = this.sector;
         return !!(s && s.needsChest && s.chestReachable && !this.owns("rock"));
+    },
+
+    dockTeachOpts() {
+        const lesson = this.sector && this.sector.lesson;
+        return {
+            hp: DOCK_TEACH.hp,
+            speed: DOCK_TEACH.speed,
+            shot: DOCK_TEACH.shot,
+            range: DOCK_TEACH.range,
+            sight: DOCK_TEACH.sight,
+            dmg: DOCK_TEACH.dmg,
+            boltSpeed: DOCK_TEACH.boltSpeed,
+            aimJitter: 0.9,
+            avoidX: lesson ? lesson.x : 0,
+            avoidY: lesson ? lesson.y : 0,
+            avoidR: lesson ? DOCK_TEACH.avoid : 0,
+        };
     },
 
     exitOpen() {
