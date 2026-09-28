@@ -53,9 +53,8 @@ function deckHangar() {
     putCell(g, 29, 33, "P");
     putCell(g, 29, 2, "E");
     putCell(g, 29, 15, "B");
+    // One stormtrooper. Captain Phasma is B, not G. Extra G markers would be adds if the spawn cap is skipped.
     putCell(g, 18, 21, "G");
-    putCell(g, 40, 21, "G");
-    putCell(g, 29, 25, "G");
     placeToys(g, 12, 10, 48, 18, 0, 0, 0);
     return g;
 }
@@ -371,12 +370,32 @@ const World = {
     },
 
     drawParkedSnub(ctx, camera) {
-        const sx = 8 * TILE + TILE / 2 - camera.x;
-        const sy = 9 * TILE + TILE / 2 - camera.y;
+        const sx = Math.round(8 * TILE + TILE / 2 - camera.x);
+        const sy = Math.round(9 * TILE + TILE / 2 - camera.y);
         ctx.save();
-        ctx.translate(Math.round(sx), Math.round(sy));
-        ctx.scale(2, 2);
+        ctx.translate(sx, sy);
         ctx.globalAlpha = 0.92;
+        // Wide wings, small hull. A 2x hull here was a white figure with two dark panes.
+        ctx.fillStyle = PALETTE.ink;
+        ctx.strokeStyle = PALETTE.panel;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(-56, -20);
+        ctx.lineTo(-14, 0);
+        ctx.lineTo(-56, 20);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(56, -20);
+        ctx.lineTo(14, 0);
+        ctx.lineTo(56, 20);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = PALETTE.gold;
+        ctx.fillRect(-52, -2, 10, 4);
+        ctx.fillRect(42, -2, 10, 4);
         Sprites.draw(ctx, "ship-snub", 0, 0, false);
         ctx.restore();
     },

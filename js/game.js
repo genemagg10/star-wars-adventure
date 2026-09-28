@@ -456,7 +456,8 @@ const Game = {
         if (!bossDown && missing.length === 0) {
             const guardList = this.sector.guards;
             const teachDock = spec.id === "dock" && !this.dockTeachDone;
-            // Hangar stays at one add. The Docking Ring keeps one softer trooper until the hangar.
+            // Hangar map bakes one G. This cap is the safety net if a stray marker lands in the list.
+            // The Docking Ring keeps one softer trooper until the hangar.
             const guardCap = spec.id === "hangar" ? 1 : (teachDock ? 1 : guardList.length);
             for (let i = 0; i < guardList.length && i < guardCap; i++) {
                 const g = guardList[i];
