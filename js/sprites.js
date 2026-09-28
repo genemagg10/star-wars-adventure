@@ -1257,7 +1257,7 @@ const SPRITE_SCALE = {
     "wall-hangar": 1, "wall-hangar-bay": 1, "wall-hangar-bay-b": 1,
     "hangar-exit": 1, "hangar-exit-open": 1,
     "viewport-hangar": 1, "viewport-hangar-b": 1,
-    "ship-snub-parked": 1, "ship-snub-parked-b": 1,
+    "ship-snub-parked": 2, "ship-snub-parked-b": 2,
     "boss-chrome": 4, "boss-shadow": 4, "boss-dark": 4, "boss-fallen": 4, "boss-hooded": 4,
     little: 2,
     "grogu-face": 2,

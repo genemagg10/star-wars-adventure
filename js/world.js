@@ -428,8 +428,9 @@ const World = {
     },
 
     drawParkedSnub(ctx, camera, game) {
-        const sx = Math.round(8 * TILE + TILE / 2 - camera.x);
-        const sy = Math.round(9 * TILE + TILE / 2 - camera.y);
+        // Open bay between the first runway pair and the left blast door. Paint only.
+        const sx = Math.round(7 * TILE + TILE / 2 - camera.x);
+        const sy = Math.round(10 * TILE - camera.y);
         const blink = game && Math.floor(game.time * 2) % 2 === 0;
         Sprites.draw(ctx, blink ? "ship-snub-parked" : "ship-snub-parked-b", sx, sy, false);
     },
