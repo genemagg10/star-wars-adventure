@@ -157,7 +157,8 @@ function placeToys(g, ox, oy, ix, iy, sx, sy, len) {
 
 const FLOOR_CYCLE = {
     dock: ["floor-dock", "floor-dock-b", "floor-dock-c"],
-    hangar: ["floor", "floor-y", "stripe"],
+    // Open hull between the baked "=" runway rows. Gold stripes stay on those cells.
+    hangar: ["floor-hangar", "floor-hangar-b", "floor-hangar-c"],
     conduit: ["floor-u", "floor", "floor-b"],
     trash: ["floor-c", "floor", "floor-b"],
     gallery: ["floor-y", "floor", "floor-b"],
@@ -254,27 +255,34 @@ const World = {
 
     tileSprite(sector, ch, tx, ty, game) {
         const dock = sector.id === "dock";
+        const hangar = sector.id === "hangar";
         if (ch === "#") {
-            if (!dock) return "wall";
-            const port = ((tx * 3 + ty * 5) % 7) === 0;
-            if (!port) return "wall-dock";
-            return Math.floor(game.time * 2 + tx + ty) % 2 === 0 ? "wall-dock-port" : "wall-dock-port-b";
+            if (dock) {
+                const port = ((tx * 3 + ty * 5) % 7) === 0;
+                if (!port) return "wall-dock";
+                return Math.floor(game.time * 2 + tx + ty) % 2 === 0 ? "wall-dock-port" : "wall-dock-port-b";
+            }
+            if (hangar) return this.hangarWallKey(tx, ty, sector, game);
+            return "wall";
         }
         if (ch === "+") return dock ? "pillar-dock" : "pillar";
         if (ch === "~") return Math.floor(game.time * 3) % 2 === 0 ? "hazard" : "hazard2";
         if (ch === "D") return game.secretOpen ? "door-open" : "door";
         if (ch === "E") {
             if (dock) return game.exitOpen() ? "airlock-open" : "airlock";
+            if (hangar) return game.exitOpen() ? "hangar-exit-open" : "hangar-exit";
             return game.exitOpen() ? "exit-open" : "exit";
         }
         if (ch === "C") return game.owns("rock") ? "floor" : "chest";
         if (ch === "=") {
             if (dock) return Math.floor(game.time * 3 + tx) % 2 === 0 ? "glow" : "glow-b";
+            if (hangar) return Math.floor(game.time * 3 + tx) % 2 === 0 ? "hangar-stripe" : "hangar-stripe-b";
             return Math.floor(game.time * 4 + tx) % 2 === 0 ? "stripe" : "stripe-b";
         }
         if (ch === "O") {
             const on = Math.floor(game.time * 3 + tx + ty) % 2 === 0;
             if (dock) return on ? "viewport-dock" : "viewport-dock-b";
+            if (hangar) return on ? "viewport-hangar" : "viewport-hangar-b";
             return on ? "viewport" : "viewport-b";
         }
         if (ch === "I") return "pipe";
@@ -284,6 +292,22 @@ const World = {
         const cycle = FLOOR_CYCLE[sector.id] || FLOOR_CYCLE.dock;
         const n = Math.abs((tx * 13 + ty * 7) % cycle.length);
         return cycle[n];
+    },
+
+    // North and south edges are a run of bay doors. Side walls stay tall ribs, with a gold sill every few tiles.
+    hangarWallKey(tx, ty, sector, game) {
+        const north = ty === 0;
+        const south = ty === sector.h - 1;
+        const west = tx === 0;
+        const east = tx === sector.w - 1;
+        let bay = false;
+        if (north || south) bay = true;
+        else if (west || east) bay = (ty % 5) === 3;
+        else bay = (ty % 2) === 1;
+        if (!bay) return "wall-hangar";
+        const lamp = ((tx * 3 + ty * 5) % 7) === 0;
+        if (!lamp) return "wall-hangar-bay";
+        return Math.floor(game.time * 2 + tx + ty) % 2 === 0 ? "wall-hangar-bay" : "wall-hangar-bay-b";
     },
 
     draw(ctx, sector, camera, game) {
@@ -308,6 +332,15 @@ const World = {
                     ctx.fillRect(Math.round(dx - TILE / 2), Math.round(dy - TILE / 2), TILE, 3);
                     ctx.restore();
                 }
+                if (key === "hangar-stripe" || key === "hangar-stripe-b") {
+                    const pulse = 0.1 + 0.08 * (0.5 + 0.5 * Math.sin(game.time * 3 + tx * 0.35));
+                    ctx.save();
+                    ctx.globalCompositeOperation = "lighter";
+                    ctx.globalAlpha = pulse;
+                    ctx.fillStyle = PALETTE.gold;
+                    ctx.fillRect(Math.round(dx - TILE / 2), Math.round(dy - 2), TILE, 4);
+                    ctx.restore();
+                }
                 if (key === "glow" || key === "glow-b") {
                     const pulse = 0.16 + 0.12 * (0.5 + 0.5 * Math.sin(game.time * 3 + tx * 0.35));
                     ctx.save();
@@ -319,7 +352,7 @@ const World = {
                 }
             }
         }
-        if (sector.id === "hangar") this.drawParkedSnub(ctx, camera);
+        if (sector.id === "hangar") this.drawParkedSnub(ctx, camera, game);
         if (sector.id === "trash") this.drawJunk(ctx, camera, game);
         const accent = sector.accent || PALETTE.blue;
         ctx.save();
@@ -394,35 +427,11 @@ const World = {
         }
     },
 
-    drawParkedSnub(ctx, camera) {
+    drawParkedSnub(ctx, camera, game) {
         const sx = Math.round(8 * TILE + TILE / 2 - camera.x);
         const sy = Math.round(9 * TILE + TILE / 2 - camera.y);
-        ctx.save();
-        ctx.translate(sx, sy);
-        ctx.globalAlpha = 0.92;
-        // Wide wings, small hull. A 2x hull here was a white figure with two dark panes.
-        ctx.fillStyle = PALETTE.ink;
-        ctx.strokeStyle = PALETTE.panel;
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(-56, -20);
-        ctx.lineTo(-14, 0);
-        ctx.lineTo(-56, 20);
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(56, -20);
-        ctx.lineTo(14, 0);
-        ctx.lineTo(56, 20);
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-        ctx.fillStyle = PALETTE.gold;
-        ctx.fillRect(-52, -2, 10, 4);
-        ctx.fillRect(42, -2, 10, 4);
-        Sprites.draw(ctx, "ship-snub", 0, 0, false);
-        ctx.restore();
+        const blink = game && Math.floor(game.time * 2) % 2 === 0;
+        Sprites.draw(ctx, blink ? "ship-snub-parked" : "ship-snub-parked-b", sx, sy, false);
     },
 
     // Returns human-readable layout problems. Empty means the deck is walkable.
