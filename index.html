@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#0B1020">
+    <title>Star Station Adventure</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect fill='%230B1020' width='16' height='16'/%3E%3Cpath fill='%23FFC857' d='M8 1 L15 8 L8 15 L1 8 Z'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="css/style.css?v=20260928-phase1b">
+</head>
+<body>
+    <div id="rotate-gate">
+        <p class="kicker">Star Station Adventure</p>
+        <h2>Turn sideways</h2>
+        <p>The stick, Attack, Power, and Interact need a landscape screen.</p>
+    </div>
+
+    <div id="frame">
+        <canvas id="gameCanvas" width="800" height="600" aria-label="Star Station Adventure playfield"></canvas>
+
+        <section id="screen-title" class="screen">
+            <div class="panel">
+                <p class="kicker">Battle Station</p>
+                <h1>Star Station Adventure</h1>
+                <p class="by">by Jordan</p>
+                <p class="lede">The decks are dark. Four powers stand between you and the Hooded Master.</p>
+                <div class="actions">
+                    <button type="button" id="btn-begin">Begin</button>
+                    <button type="button" id="btn-continue" hidden>Continue</button>
+                    <button type="button" id="btn-controls">Controls</button>
+                </div>
+            </div>
+        </section>
+
+        <section id="screen-hero" class="screen hidden">
+            <div class="panel wide">
+                <p class="kicker">Hero</p>
+                <h2>Who boards?</h2>
+                <div id="hero-choices" class="choices"></div>
+                <div class="actions">
+                    <button type="button" id="hero-back">Back</button>
+                </div>
+            </div>
+        </section>
+
+        <section id="screen-color" class="screen hidden">
+            <div class="panel wide">
+                <p class="kicker">Saber</p>
+                <h2>Color</h2>
+                <p id="color-who" class="lede">Choose a saber color.</p>
+                <div id="color-choices" class="swatches"></div>
+                <div class="actions">
+                    <button type="button" id="color-back">Back</button>
+                </div>
+            </div>
+        </section>
+
+        <section id="screen-controls" class="screen hidden">
+            <div class="panel">
+                <p class="kicker">Controls</p>
+                <h2>Hands on the deck</h2>
+                <ul class="keys">
+                    <li><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> Move</li>
+                    <li><kbd>Space</kbd> Melee</li>
+                    <li><kbd>Q</kbd> Use power</li>
+                    <li><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><kbd>4</kbd> Select power</li>
+                    <li><kbd>E</kbd> Interact</li>
+                    <li><kbd>Esc</kbd> Pause</li>
+                </ul>
+                <p class="lede">On a phone, turn sideways. Use the stick, then Attack, Power, and Interact.</p>
+                <div class="actions">
+                    <button type="button" id="controls-back">Back</button>
+                </div>
+            </div>
+        </section>
+
+        <section id="screen-pause" class="screen hidden">
+            <div class="panel">
+                <p class="kicker">Paused</p>
+                <h2>Hold position</h2>
+                <p id="pause-note" class="lede"></p>
+                <div class="actions">
+                    <button type="button" id="btn-resume">Resume</button>
+                    <button type="button" id="btn-save">Save</button>
+                    <button type="button" id="btn-pause-controls">Controls</button>
+                    <button type="button" id="btn-quit">Quit to title</button>
+                </div>
+            </div>
+        </section>
+
+        <section id="screen-card" class="screen hidden">
+            <div class="panel">
+                <p id="card-kicker" class="kicker"></p>
+                <h2 id="card-title"></h2>
+                <p id="card-body" class="lede"></p>
+                <p id="card-line" class="win-line hidden"></p>
+                <ul id="card-notes"></ul>
+                <div id="card-actions" class="actions"></div>
+            </div>
+        </section>
+
+        <div id="touch">
+            <div id="stick"><div id="nub"></div></div>
+            <div id="touch-actions">
+                <button type="button" id="btn-attack">Attack</button>
+                <button type="button" id="btn-power">Power</button>
+                <button type="button" id="btn-interact">Interact</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/constants.js?v=20260928-phase1b"></script>
+    <script src="js/utils.js?v=20260928-phase1b"></script>
+    <script src="js/sprites.js?v=20260928-phase1b"></script>
+    <script src="js/sound.js?v=20260928-phase1b"></script>
+    <script src="js/touch.js?v=20260928-phase1b"></script>
+    <script src="js/save.js?v=20260928-phase1b"></script>
+    <script src="js/combat.js?v=20260928-phase1b"></script>
+    <script src="js/entities.js?v=20260928-phase1b"></script>
+    <script src="js/world.js?v=20260928-phase1b"></script>
+    <script src="js/ui.js?v=20260928-phase1b"></script>
+    <script src="js/game.js?v=20260928-phase1b"></script>
+</body>
+</html>
