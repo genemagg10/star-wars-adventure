@@ -330,7 +330,7 @@ const Game = {
             this.objective = "Defeat the " + (boss ? boss.name : "boss");
             return;
         }
-        if (s.needsChest && !this.owns("rock")) {
+        if (this.chestBlocksExit()) {
             this.objective = "Open the salvage chest";
             return;
         }
@@ -342,10 +342,15 @@ const Game = {
         else this.objective = "Hold the deck";
     },
 
+    chestBlocksExit() {
+        const s = this.sector;
+        return !!(s && s.needsChest && s.chestReachable && !this.owns("rock"));
+    },
+
     exitOpen() {
         const s = this.sector;
         if (!s || !s.exit) return false;
-        if (s.needsChest && !this.owns("rock")) return false;
+        if (this.chestBlocksExit()) return false;
         if (this.enemies.some((e) => e.alive)) return false;
         return true;
     },
@@ -374,7 +379,7 @@ const Game = {
             this.openCard({
                 kicker: "Salvage chest",
                 title: "Rock Toss",
-                body: "The chest in the Trash Compactor clicks open. Press 4 to ready Rock Toss, then Q to throw it.",
+                body: "The chest between the Dark Lord and the Fallen Knight clicks open. Press 4 to ready Rock Toss, then Q to throw it.",
                 buttons: [{ label: "Take it", onClick: () => this.closeCard() }],
             });
             return;
@@ -494,13 +499,18 @@ const Game = {
             return;
         }
         if (id === "fallen") {
+            const missedRock = !this.owns("rock");
             this.grantPower("lightning");
+            if (missedRock) this.grantPower("rock");
             this.save();
             SoundSystem.fanfare();
+            const body = missedRock
+                ? "Press 3 to ready Lightning, then Q. The salvage chest could not be opened, so Rock Toss is yours as well. Press 4, then Q. This chase lane is sealed. The snub fighters never launch."
+                : "Press 3 to ready Lightning, then Q. Lavender light answers. This chase lane is sealed. The snub fighters never launch.";
             this.openCard({
                 kicker: "Power",
                 title: "Lightning",
-                body: "Press 3 to ready Lightning, then Q. Lavender light answers. This chase lane is sealed. The snub fighters never launch.",
+                body: body,
                 buttons: [{ label: "Continue", onClick: () => this.afterReward("fallen") }],
             });
             return;

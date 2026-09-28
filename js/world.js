@@ -1,5 +1,6 @@
 // Star Station Adventure — linear decks aboard the Battle Station.
-// Rock Toss lives in the Trash Compactor salvage chest (mid-game, before the Dark Lord).
+// Rock Toss primary path: the Trash Compactor chest sits between the Dark Lord
+// and the Fallen Knight. If that chest cannot be reached, Fallen Knight grants it.
 
 function makeGrid(w, h) {
     const g = [];
@@ -150,8 +151,8 @@ const World = {
         { id: "dock", name: "Docking Ring", bossId: null, needsChest: false, build: deckDock },
         { id: "hangar", name: "Chrome Hangar", bossId: "chrome", needsChest: false, build: deckHangar },
         { id: "conduit", name: "Shadow Conduit", bossId: "shadow", needsChest: false, build: deckConduit },
-        { id: "trash", name: "Trash Compactor", bossId: null, needsChest: true, build: deckTrash },
         { id: "gallery", name: "Throne Gallery", bossId: "dark", needsChest: false, build: deckGallery },
+        { id: "trash", name: "Trash Compactor", bossId: null, needsChest: true, build: deckTrash },
         { id: "fallen", name: "Fallen Deck", bossId: "fallen", needsChest: false, build: deckFallen },
         { id: "core", name: "Core Gate", bossId: "hooded", needsChest: false, build: deckCore },
     ],
@@ -189,11 +190,20 @@ const World = {
                 else if (ch === "S") { sticker = p; tiles[y][x] = "."; }
             }
         }
+        let chestReachable = false;
+        if (spec.needsChest && chest && spawn) {
+            const from = worldToTile(spawn.x, spawn.y);
+            const to = worldToTile(chest.x, chest.y);
+            chestReachable = bfs(tiles, from.x, from.y, to.x, to.y, (ch) => {
+                return ch === "#" || ch === "+" || ch === "D";
+            });
+        }
         return {
             id: spec.id,
             name: spec.name,
             bossId: spec.bossId,
             needsChest: spec.needsChest,
+            chestReachable: chestReachable,
             w: w,
             h: h,
             tiles: tiles,
