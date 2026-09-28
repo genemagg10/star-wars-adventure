@@ -170,6 +170,39 @@ const PHASMA_CLEAR = {
     rushInvuln: 2.2,
 };
 
+// First blink. A wider, slower ring so the step-out reads, then the same
+// step-back and hold as the rest of the fight.
+const INQUISITOR_OPEN = {
+    delay: 1.65,
+    approach: 0.34,
+    telegraph: 1.8,
+    ring: 40,
+    earlyGrace: 0.5,
+    lateEntry: 0.48,
+    grace: 1.9,
+    reach: 176,
+};
+
+// After that blink. The purple ring stays the verb. She steps back and the
+// next ring waits through a long hold, a hit stretches that hold, and a short
+// clip of the circle does not take a heart. Camping the paint still does.
+// A blink that connects leaves i-frames so the conduit troopers cannot combo it.
+const INQUISITOR_CLEAR = {
+    approach: 0.4,
+    telegraph: 1.28,
+    ring: 32,
+    earlyGrace: 0.38,
+    lateEntry: 0.46,
+    grace: 1.8,
+    standoff: 46,
+    hold: 3.4,
+    hug: 2.45,
+    hitStretch: 0.75,
+    drift: 0.7,
+    blinkInvuln: 2.2,
+    reach: 188,
+};
+
 const ACHIEVEMENTS = {
     saved: "Death Star Saved",
     sticker: "Chewbacca-bot Sticker",
@@ -197,7 +230,7 @@ const DOCK_TEACH = {
 
 const BOSS_STATS = {
     chrome: { name: "Captain Phasma", hp: 12, speed: 44, gap: 2.15 },
-    shadow: { name: "Inquisitor", hp: 30, speed: 78, gap: 1.2 },
+    shadow: { name: "Inquisitor", hp: 18, speed: 78, gap: 1.2 },
     dark: { name: "Darth Vader", hp: 36, speed: 48, gap: 1.7 },
     fallen: { name: "Kylo Ren", hp: 28, speed: 60, gap: 1.5 },
     hooded: { name: "Emperor", hp: 42, speed: 64, gap: 1.05 },
