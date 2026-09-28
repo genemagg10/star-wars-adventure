@@ -291,8 +291,13 @@ const UI = {
         for (let i = 0; i < max; i++) {
             const hx = heartX + i * 20;
             if (i < hearts) {
-                ctx.fillStyle = "rgba(61, 219, 122, 0.28)";
-                ctx.fillRect(hx - 9, 14, 18, 18);
+                ctx.save();
+                ctx.fillStyle = PALETTE.green;
+                ctx.globalAlpha = 0.5;
+                ctx.beginPath();
+                ctx.arc(hx, 24, 11, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
             }
             Sprites.draw(ctx, i < hearts ? "heart" : "heart-empty", hx, 24, false);
         }
@@ -325,7 +330,7 @@ const UI = {
 
         if (game.toastT > 0 && game.toastText) {
             ctx.fillStyle = PALETTE.gold;
-            ctx.fillText(game.toastText, CANVAS_W / 2, 74);
+            ctx.fillText(game.toastText, CANVAS_W / 2, CANVAS_H - 36);
         }
 
         const gem = saberById(game.saber).color;
@@ -345,7 +350,7 @@ const UI = {
             rock: PALETTE.gold,
         };
         const gap = 22;
-        const y = 50;
+        const y = 64;
         const start = CANVAS_W / 2 - ((POWER_SLOTS.length - 1) * gap) / 2;
         for (let i = 0; i < POWER_SLOTS.length; i++) {
             const id = POWER_SLOTS[i];
@@ -366,11 +371,12 @@ const UI = {
             }
             if (!owned || cd <= 0 || max <= 0) continue;
             const ready = 1 - Math.min(1, cd / max);
-            ctx.strokeStyle = PALETTE.foam;
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.arc(x, y, r + 5, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * ready);
-            ctx.stroke();
+            const barW = 14;
+            const barY = y + r + 4;
+            ctx.fillStyle = PALETTE.ink;
+            ctx.fillRect(x - barW / 2, barY, barW, 3);
+            ctx.fillStyle = PALETTE.foam;
+            ctx.fillRect(x - barW / 2, barY, barW * ready, 3);
         }
     },
 };

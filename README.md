@@ -54,7 +54,7 @@ Lightsaber colors are blue, green, purple, yellow, white, and orange. Hearts are
 8. Kylo Deck — defeat Kylo Ren to learn **Lightning**.
 9. Core Gate — fly the trench (towers on the walls, debris in the slot) or walk in. The Emperor waits until you hold all four Force powers. Win, and the card shows your hero, your lightsaber color, Grogu hopping if they joined, and **Part Two coming soon!**
 
-Each deck has its own accent from the palette: blue, gold, purple, orange, green, lavender, then white at the core. Hearts stay green. Danger stays orange.
+Each deck has its own accent from the palette: blue, gold, purple, orange, green, lavender, then white at the core. Filled hearts glow green. Danger stays orange, and only on hazards. Corridors keep a round viewport, a blue-and-gold floor strip, and a pipe. Troopers march in step until they spot you. The Phasma Hangar opens on runway stripes and a parked fighter.
 
 The three flights share one chase. A lane only changes how long it lasts, how crowded it is, what shows up, and how the background looks. You clear one by lasting until the timer ends.
 

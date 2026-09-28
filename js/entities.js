@@ -178,10 +178,28 @@ function updateGuard(e, game, dt) {
     const p = game.player;
     const dir = normalize(p.x - e.x, p.y - e.y);
     const d = dist(e.x, e.y, p.x, p.y);
+    if (e.hp < e.maxHp) e.broken = true;
+    const sight = (tx, ty) => game.solidAt(tx, ty);
+    const seen = d < 108 && !lineBlocked(sight, e.x, e.y, p.x, p.y);
+    if (!e.broken && !seen) {
+        if (e.homeX == null) {
+            e.homeX = e.x;
+            e.homeY = e.y;
+        }
+        e.marching = true;
+        const phase = Math.sin(game.time * 2.4);
+        const targetX = e.homeX + phase * 10;
+        const step = normalize(targetX - e.x, e.homeY - e.y);
+        e.facing = { x: phase >= 0 ? 1 : -1, y: 0 };
+        if (Math.abs(targetX - e.x) > 1) slide(e, step.x * 32 * dt, step.y * 32 * dt, game);
+        return;
+    }
+    e.broken = true;
+    e.marching = false;
     if (dir.x || dir.y) e.facing = dir;
     e.timer -= dt;
     if (d > 22) slide(e, (dir.x * e.speed + e.kx) * dt, (dir.y * e.speed + e.ky) * dt, game);
-    if (e.timer <= 0 && d < GUARD_STATS.range && !lineBlocked(game.solidAt, e.x, e.y, p.x, p.y)) {
+    if (e.timer <= 0 && d < GUARD_STATS.range && !lineBlocked(sight, e.x, e.y, p.x, p.y)) {
         e.timer = GUARD_STATS.shot;
         const aim = Math.atan2(dir.y, dir.x) + (Math.random() - 0.5) * 0.4;
         const spd = 118;
@@ -218,6 +236,7 @@ const Entities = {
             hopeCd: 0,
             invuln: 0.7,
             swing: 0,
+            ignite: 0,
             kx: 0,
             ky: 0,
             moving: false,
@@ -314,6 +333,7 @@ const Entities = {
         p.hopeCd = Math.max(0, p.hopeCd - dt);
         p.invuln = Math.max(0, p.invuln - dt);
         p.swing = Math.max(0, p.swing - dt);
+        p.ignite = Math.max(0, (p.ignite || 0) - dt);
         decayKick(p, dt);
         const hero = HEROES[p.heroId];
         const m = input.move;
@@ -362,6 +382,7 @@ const Entities = {
         }
         c.bob = (c.bob || 0) + dt;
         c.echoT = Math.max(0, (c.echoT || 0) - dt);
+        c.wiggle = Math.max(0, (c.wiggle || 0) - dt);
     },
 
     updateEcho(game, dt) {
@@ -506,6 +527,23 @@ function drawPlayer(ctx, game) {
     shadow(ctx, sx, sy);
     const hero = HEROES[p.heroId];
     const color = saberById(game.saber).color;
+    if (p.ignite > 0 && hero.melee !== "bowcaster") {
+        const snap = p.ignite / 0.09;
+        ctx.save();
+        ctx.globalCompositeOperation = "lighter";
+        ctx.globalAlpha = 0.55 * snap;
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(sx, sy, 36, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 0.8 * snap;
+        ctx.fillStyle = PALETTE.foam;
+        ctx.beginPath();
+        ctx.arc(sx, sy, 8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+        Sprites.drawBlade(ctx, sx, sy, p.facing, 22, color, 6);
+    }
     if (hero.melee === "spin" && p.swing > 0) {
         ctx.save();
         ctx.strokeStyle = color;
@@ -545,13 +583,20 @@ function drawCompanion(ctx, game) {
     ctx.stroke();
     ctx.restore();
     shadow(ctx, sx, sy);
+    const flap = (c.wiggle || 0) > 0 ? Math.sin(game.time * 28) * 3 : 0;
     Sprites.draw(ctx, "little", sx, sy, c.facing.x < 0);
+    if (flap) {
+        ctx.fillStyle = PALETTE.gold;
+        ctx.fillRect(Math.round(sx - 8), Math.round(sy - 12 + flap), 3, 3);
+        ctx.fillRect(Math.round(sx + 5), Math.round(sy - 12 - flap), 3, 3);
+    }
 }
 
 function drawEnemy(ctx, game, e) {
     const cam = game.camera;
+    const step = e.marching ? (Math.floor(game.time * 3) % 2) * 2 : 0;
     const sx = e.x - cam.x;
-    const sy = e.y - cam.y;
+    const sy = e.y - cam.y - step;
     shadow(ctx, sx, sy);
     const key = e.kind === "boss" ? "boss-" + e.bossId : "guard";
     const flip = e.facing.x < 0;

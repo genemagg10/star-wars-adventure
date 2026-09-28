@@ -656,7 +656,12 @@ const Game = {
             if (this.player) {
                 this.companion = Entities.makeCompanion(this.player.x - 14, this.player.y + 18);
                 this.companion.echoT = 0.8;
-                Combat.burst(this, this.player.x - 14, this.player.y + 18, PALETTE.gold);
+                this.companion.wiggle = 0.85;
+                const bx = this.player.x - 14;
+                const by = this.player.y + 18;
+                Combat.burst(this, bx, by, PALETTE.gold);
+                Combat.burst(this, bx + 6, by - 8, PALETTE.gold);
+                this.fx.push({ kind: "ring", x: bx, y: by, r: 6, life: 0.45, color: PALETTE.gold, grow: 90 });
             }
             this.companionCd = 2;
             this.save();

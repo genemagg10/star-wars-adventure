@@ -77,6 +77,7 @@ const Combat = {
         if (p.attackCd > 0 || p.hp <= 0) return;
         p.attackCd = hero.cooldown;
         p.swing = 0.14;
+        if (hero.melee !== "bowcaster") p.ignite = 0.09;
         if (hero.melee === "bowcaster") {
             const dir = p.facing;
             game.shots.push({
