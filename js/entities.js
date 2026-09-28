@@ -29,7 +29,8 @@ function planHooded(e) {
 // Inquisitor: a circle on you, then a blink into it. The first ring is the teach.
 // After each blink she steps back and holds so a saber and Force Push can land.
 // Vader: an orange tether, then a pull.
-// Kylo: a gold cross, then a short lunge and a bolt.
+// Kylo: a gold cross, then a short lunge and a bolt. After the first cross
+// he holds in saber reach so the plate can be spent.
 // Emperor: a jagged storm, then lightning.
 function startTelegraph(e, game) {
     const player = game.player;
@@ -70,8 +71,12 @@ function startTelegraph(e, game) {
         e.telegraph = { kind: "tether", x2: player.x, y2: player.y, color: PALETTE.orange };
         SoundSystem.force("push", true);
     } else if (e.bossId === "fallen") {
-        e.timer = 0.78;
-        e.telegraph = { kind: "cross", dir: face, len: 86, color: PALETTE.gold };
+        const opening = !!e.intro;
+        const spec = opening ? KYLO_OPEN : KYLO_CLEAR;
+        e.timer = spec.telegraph;
+        e.crossInside = 0;
+        e.crossLeft = 0;
+        e.telegraph = { kind: "cross", dir: face, len: spec.len, dur: spec.telegraph, color: PALETTE.gold };
         SoundSystem.shot();
     } else {
         e.timer = 0.82;
@@ -158,19 +163,38 @@ function commitBossAttack(e, game) {
         }
         game.fx.push({ kind: "ring", x: e.x, y: e.y, r: 10, life: 0.28, color: PALETTE.orange, grow: 80 });
     } else if (e.bossId === "fallen") {
-        e.dash = { x: face.x * 130, y: face.y * 130, t: 0.16 };
+        const opening = !!e.intro;
+        const spec = opening ? KYLO_OPEN : KYLO_CLEAR;
+        e.intro = false;
+        e.clearGrace = KYLO_CLEAR.grace;
+        e.holdCap = KYLO_CLEAR.hold;
+        e.farT = 0;
+        const triedLeave = (e.crossLeft || 0) >= KYLO_CLEAR.leave;
+        const camp = !opening && !triedLeave && (e.crossInside || 0) >= KYLO_CLEAR.lateEntry;
+        const late = !opening && triedLeave;
+        e.crossInside = 0;
+        e.crossLeft = 0;
+        e.dash = {
+            x: face.x * spec.dash,
+            y: face.y * spec.dash,
+            t: spec.dashTime,
+            forgive: late,
+            finishClip: !opening && camp,
+        };
         game.shots.push({
             kind: "bolt",
             team: "foe",
             x: e.x + face.x * 16,
             y: e.y + face.y * 16,
-            vx: face.x * 150,
-            vy: face.y * 150,
+            vx: face.x * spec.bolt,
+            vy: face.y * spec.bolt,
             r: 4,
             dmg: 1,
-            life: 0.7,
+            life: spec.boltLife,
             color: PALETTE.gold,
             hit: {},
+            forgive: late,
+            finishClip: !opening && camp,
         });
     } else if (e.bossId === "hooded") {
         const power = e.nextPower || "lightning";
@@ -189,6 +213,28 @@ function chromeDashHits(e, player) {
     const dx = player.x - e.x;
     const dy = player.y - e.y;
     return Math.abs(dx * face.y - dy * face.x) < half;
+}
+
+// Painted cross is the forward lane. Side steps leave it. Standing in it does not.
+function kyloCrossInside(e, player) {
+    const face = (e.telegraph && e.telegraph.dir) || e.facing || { x: 1, y: 0 };
+    const dx = player.x - e.x;
+    const dy = player.y - e.y;
+    const along = dx * face.x + dy * face.y;
+    const lat = Math.abs(dx * face.y - dy * face.x);
+    const len = (e.telegraph && e.telegraph.len) || KYLO_OPEN.len;
+    return along > -10 && along < len + player.r && lat < KYLO_CLEAR.lane + player.r;
+}
+
+// After a cross, settle into saber reach and stay. Do not sprint past them.
+function kyloPocket(e, player) {
+    const dir = normalize(player.x - e.x, player.y - e.y);
+    const gap = dist(e.x, e.y, player.x, player.y);
+    const pocket = KYLO_CLEAR.pocket;
+    if (!dir.x && !dir.y) return { mx: 0, my: 0, speed: 0, gap: gap };
+    if (gap > pocket + 8) return { mx: dir.x, my: dir.y, speed: KYLO_CLEAR.chase, gap: gap };
+    if (gap < pocket - 14) return { mx: -dir.x, my: -dir.y, speed: 36, gap: gap };
+    return { mx: 0, my: 0, speed: 0, gap: gap };
 }
 
 // After a blink, settle into saber reach and stay. Do not orbit back out.
@@ -223,9 +269,18 @@ function updateBoss(e, game, dt) {
                 const room = Math.max(0, cap - INQUISITOR_CLEAR.hold);
                 e.holdBonus = Math.min(room, (e.holdBonus || 0) + stretch);
             }
+        } else if (e.bossId === "fallen") {
+            const stretch = KYLO_CLEAR.hitStretch;
+            const cap = KYLO_CLEAR.stretchCap;
+            if (e.state === "approach" && e.clearGrace <= 0) {
+                e.timer = Math.min(cap, (e.timer || 0) + stretch);
+            } else {
+                const room = Math.max(0, cap - KYLO_CLEAR.hold);
+                e.holdBonus = Math.min(room, (e.holdBonus || 0) + stretch);
+            }
         }
     }
-    if (e.bossId === "chrome" || e.bossId === "shadow") e.seenHp = e.hp;
+    if (e.bossId === "chrome" || e.bossId === "shadow" || e.bossId === "fallen") e.seenHp = e.hp;
     if (e.state === "approach") {
         if (e.clearGrace > 0) {
             e.clearGrace -= dt;
@@ -243,6 +298,11 @@ function updateBoss(e, game, dt) {
                 mx = step.mx;
                 my = step.my;
                 speed = step.speed;
+            } else if (e.bossId === "fallen" && !e.intro) {
+                const step = kyloPocket(e, player);
+                mx = step.mx;
+                my = step.my;
+                speed = step.speed;
             }
             slide(e, (mx * speed + e.kx) * dt, (my * speed + e.ky) * dt, game);
             if (e.clearGrace <= 0 && e.bossId === "chrome" && !e.intro) {
@@ -253,6 +313,10 @@ function updateBoss(e, game, dt) {
                 e.timer = Math.min(INQUISITOR_CLEAR.stretchCap, base + (e.holdBonus || 0));
                 e.holdBonus = 0;
                 e.hugT = 0;
+            } else if (e.clearGrace <= 0 && e.bossId === "fallen" && !e.intro) {
+                const base = e.holdCap || KYLO_CLEAR.hold;
+                e.timer = Math.min(KYLO_CLEAR.stretchCap, base + (e.holdBonus || 0));
+                e.holdBonus = 0;
             }
         } else {
             const dir = normalize(player.x - e.x, player.y - e.y);
@@ -272,6 +336,11 @@ function updateBoss(e, game, dt) {
                     my = step.my;
                     speed = step.speed;
                 }
+            } else if (e.bossId === "fallen" && !e.intro) {
+                const step = kyloPocket(e, player);
+                mx = step.mx;
+                my = step.my;
+                speed = step.speed;
             } else if (e.bossId === "hooded") {
                 speed *= 0.35;
             } else if (e.bossId === "dark") {
@@ -290,7 +359,7 @@ function updateBoss(e, game, dt) {
             }
             const gapBefore = dist(e.x, e.y, player.x, player.y);
             slide(e, (mx * speed + e.kx) * dt, (my * speed + e.ky) * dt, game);
-            const reach = e.bossId === "hooded" ? 320 : e.bossId === "shadow" ? (e.intro ? INQUISITOR_OPEN.reach : INQUISITOR_CLEAR.reach) : e.bossId === "chrome" ? 200 : e.bossId === "dark" ? 168 : 148;
+            const reach = e.bossId === "hooded" ? 320 : e.bossId === "shadow" ? (e.intro ? INQUISITOR_OPEN.reach : INQUISITOR_CLEAR.reach) : e.bossId === "chrome" ? 200 : e.bossId === "dark" ? 168 : e.bossId === "fallen" && !e.intro ? KYLO_CLEAR.reach : 148;
             const gapNow = dist(e.x, e.y, player.x, player.y);
             let ready = false;
             if (e.bossId === "chrome" && !e.intro) {
@@ -315,6 +384,21 @@ function updateBoss(e, game, dt) {
                     else {
                         e.farT = (e.farT || 0) + dt;
                         ready = e.farT >= INQUISITOR_CLEAR.patience;
+                    }
+                } else {
+                    e.farT = 0;
+                    e.timer -= dt;
+                    ready = e.timer <= 0;
+                }
+            } else if (e.bossId === "fallen" && !e.intro) {
+                // Same patience as the conduit: a kid sprinting off should not
+                // skip the hold and eat the next cross before a swing lands.
+                if (gapNow > KYLO_CLEAR.leash) {
+                    const closing = gapNow < gapBefore - 0.04;
+                    if (closing) e.farT = 0;
+                    else {
+                        e.farT = (e.farT || 0) + dt;
+                        ready = e.farT >= KYLO_CLEAR.patience;
                     }
                 } else {
                     e.farT = 0;
@@ -353,6 +437,13 @@ function updateBoss(e, game, dt) {
                 slide(e, away.x * 46 * dt, away.y * 46 * dt, game);
             }
         }
+        if (e.bossId === "fallen" && e.telegraph && e.telegraph.kind === "cross") {
+            const spec = e.intro ? KYLO_OPEN : KYLO_CLEAR;
+            const elapsed = (e.telegraph.dur || spec.telegraph) - e.timer;
+            const inside = kyloCrossInside(e, player);
+            if (inside && elapsed >= KYLO_CLEAR.earlyGrace) e.crossInside = (e.crossInside || 0) + dt;
+            else if (!inside && elapsed >= 0.2) e.crossLeft = (e.crossLeft || 0) + dt;
+        }
         if (e.bossId === "chrome" && e.telegraph && e.telegraph.kind === "lane") {
             const face = e.telegraph.dir || e.facing || { x: 1, y: 0 };
             const dx = player.x - e.x;
@@ -382,11 +473,18 @@ function updateBoss(e, game, dt) {
                     player.kx += away.x * 80;
                     player.ky += away.y * 80;
                     e.dash.shoved = true;
+                    if (e.bossId === "fallen" && player.invuln < KYLO_CLEAR.shoveInvuln) {
+                        player.invuln = KYLO_CLEAR.shoveInvuln;
+                    }
                 }
             } else if (clipped) {
+                const before = player.hp;
                 Combat.hurtPlayer(game, 1, e.x, e.y);
                 if (e.dash && e.dash.clearRush && player.invuln < PHASMA_CLEAR.rushInvuln) {
                     player.invuln = PHASMA_CLEAR.rushInvuln;
+                }
+                if (e.dash && e.dash.finishClip && player.hp < before && player.invuln < KYLO_CLEAR.clipInvuln) {
+                    player.invuln = KYLO_CLEAR.clipInvuln;
                 }
             }
             if (e.dash.t <= 0) e.dash = null;
@@ -554,8 +652,8 @@ const Entities = {
             gap: stats.gap,
             facing: { x: 0, y: 1 },
             state: "approach",
-            timer: bossId === "chrome" ? PHASMA_OPEN.delay : bossId === "shadow" ? INQUISITOR_OPEN.delay : 0.7,
-            intro: bossId === "chrome" || bossId === "shadow",
+            timer: bossId === "chrome" ? PHASMA_OPEN.delay : bossId === "shadow" ? INQUISITOR_OPEN.delay : bossId === "fallen" ? KYLO_OPEN.delay : 0.7,
+            intro: bossId === "chrome" || bossId === "shadow" || bossId === "fallen",
             clearGrace: 0,
             hugT: 0,
             telegraph: null,

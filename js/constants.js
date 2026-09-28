@@ -208,6 +208,50 @@ const INQUISITOR_CLEAR = {
     reach: 210,
 };
 
+// First gold cross. The lunge and the bolt stay as they are. The teach is
+// the mark on the floor, then one hit if you are still in it.
+const KYLO_OPEN = {
+    delay: 0.7,
+    telegraph: 0.78,
+    len: 86,
+    dash: 130,
+    dashTime: 0.16,
+    bolt: 150,
+    boltLife: 0.7,
+};
+
+// Finish window. After that cross he steps into saber reach and the hold
+// runs long enough to spend the hit points still on the plate. A saber or
+// Force hit stretches the hold, and it connects even if they stopped and
+// the stick still points at the dodge. Stepping off a later cross and
+// walking back in shoves, with a short breather, and does not take a heart.
+// Standing in the cross the whole time still takes one, then a longer
+// breather so the deck troopers cannot turn that heart into a spiral.
+const KYLO_CLEAR = {
+    telegraph: 1.15,
+    len: 86,
+    dash: 108,
+    dashTime: 0.16,
+    bolt: 126,
+    boltLife: 0.62,
+    grace: 0.55,
+    pocket: 40,
+    leash: 108,
+    patience: 3.8,
+    hold: 10,
+    hitStretch: 1.7,
+    stretchCap: 15,
+    chase: 168,
+    leave: 0.2,
+    lateEntry: 0.34,
+    earlyGrace: 0.22,
+    lane: 16,
+    shoveInvuln: 1.8,
+    clipInvuln: 2.5,
+    reach: 200,
+    aim: 210,
+};
+
 const ACHIEVEMENTS = {
     saved: "Death Star Saved",
     sticker: "Chewbacca-bot Sticker",
