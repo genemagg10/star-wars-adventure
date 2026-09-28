@@ -72,7 +72,8 @@ const HEROES = {
 };
 
 // Gene lock: hotkeys stay on this order. The third boss grants no power.
-// Rock Toss is slot 4 and is found in the Trash Compactor chest.
+// Rock Toss is slot 4. Primary find is the chest after the Dark Lord.
+// Fallback, only if that chest cannot be reached: Fallen Knight also grants it.
 const POWERS = {
     push: { slot: "1", code: "Digit1", name: "Force Push" },
     throw: { slot: "2", code: "Digit2", name: "Saber Throw" },

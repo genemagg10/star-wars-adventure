@@ -38,8 +38,8 @@ On a phone, turn sideways. A stick sits on the left. Attack, Power, and Interact
 3. Docking Ring — white troopers.
 4. Chrome Hangar — defeat the Chrome Captain to learn **Force Push**. An optional chase lane is open here.
 5. Shadow Conduit — defeat the Shadow Seeker to learn **Saber Throw**.
-6. Trash Compactor — open the salvage chest to learn **Rock Toss**. A side hatch hides a Chewoo-bot sticker.
-7. Throne Gallery — defeat the Dark Lord. **Little One** joins. No power from this fight.
+6. Throne Gallery — defeat the Dark Lord. **Little One** joins. No power from this fight.
+7. Trash Compactor — open the salvage chest to learn **Rock Toss**. A side hatch hides a Chewoo-bot sticker.
 8. Fallen Deck — defeat the Fallen Knight to learn **Lightning**.
 9. Core Gate — the Hooded Master stays sealed until you hold all four powers. Win, and the card reads **Part Two coming soon!**
 
@@ -52,7 +52,7 @@ Power keys stay fixed:
 3. Lightning
 4. Rock Toss
 
-Rock Toss is the mid-game chest in the Trash Compactor, after the Shadow Seeker and before the Dark Lord.
+Rock Toss is the mid-game salvage chest in the Trash Compactor, after the Dark Lord and before the Fallen Knight. That fills the gap where Little One joins and no power drops. If that chest cannot be reached, the Fallen Knight grants Rock Toss along with Lightning.
 
 Little One has no heart of their own. They follow and, on a long cooldown, echo your last power weakly. The Chewoo-bot behind the trash hatch is a sticker achievement only.
 
@@ -75,7 +75,7 @@ Player-facing names are the ones in the game. This table is the only place the f
 | Chrome Captain | first boss |
 | Shadow Seeker | second boss |
 | Dark Lord | third boss (companion, no power) |
-| Fallen Knight | fourth boss |
+| Fallen Knight | fourth boss (Kylo) |
 | Hooded Master | final boss |
 
 ## Heroes
