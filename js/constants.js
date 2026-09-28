@@ -140,7 +140,7 @@ const DECK_CRAWLS = {
     ],
 };
 
-// First contact only. After the opening rush she uses the normal lane and dash.
+// First contact only. Broad lane, slow walk, slow rush.
 const PHASMA_OPEN = {
     approach: 0.58,
     delay: 2.05,
@@ -148,6 +148,19 @@ const PHASMA_OPEN = {
     laneWidth: 36,
     dash: 82,
     dashTime: 0.48,
+};
+
+// After that first rush. Same lesson, with room to use it: she holds off
+// your toes, the lane matches the hit, and she pauses once before closing.
+const PHASMA_CLEAR = {
+    approach: 0.7,
+    telegraph: 1.55,
+    laneWidth: 34,
+    dash: 100,
+    dashTime: 0.42,
+    grace: 0.85,
+    standoff: 62,
+    alpha: 0.5,
 };
 
 const ACHIEVEMENTS = {

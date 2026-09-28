@@ -38,12 +38,12 @@ function startTelegraph(e, game) {
     const face = { x: e.facing.x, y: e.facing.y };
     if (e.bossId === "chrome") {
         const opening = !!e.intro;
-        e.timer = opening ? PHASMA_OPEN.telegraph : 1.25;
+        e.timer = opening ? PHASMA_OPEN.telegraph : PHASMA_CLEAR.telegraph;
         e.telegraph = {
             kind: "lane",
             dir: face,
             len: 148,
-            width: opening ? PHASMA_OPEN.laneWidth : 26,
+            width: opening ? PHASMA_OPEN.laneWidth : PHASMA_CLEAR.laneWidth,
             color: PALETTE.foam,
         };
         SoundSystem.swing();
@@ -77,10 +77,12 @@ function commitBossAttack(e, game) {
     const face = e.facing || { x: 1, y: 0 };
     if (e.bossId === "chrome") {
         const opening = !!e.intro;
+        const width = opening ? PHASMA_OPEN.laneWidth : PHASMA_CLEAR.laneWidth;
         e.intro = false;
-        const dash = opening ? PHASMA_OPEN.dash : 140;
-        const dashT = opening ? PHASMA_OPEN.dashTime : 0.28;
-        e.dash = { x: face.x * dash, y: face.y * dash, t: dashT };
+        if (opening) e.clearGrace = PHASMA_CLEAR.grace;
+        const dash = opening ? PHASMA_OPEN.dash : PHASMA_CLEAR.dash;
+        const dashT = opening ? PHASMA_OPEN.dashTime : PHASMA_CLEAR.dashTime;
+        e.dash = { x: face.x * dash, y: face.y * dash, t: dashT, half: width / 2 };
     } else if (e.bossId === "shadow") {
         if (e.blink && !game.circleBlocked(e.blink.x, e.blink.y, e.r)) {
             e.x = e.blink.x;
@@ -126,31 +128,56 @@ function commitBossAttack(e, game) {
     e.telegraph = null;
 }
 
+// Painted lane is the hit. Stepping off the white bar clears the rush.
+function chromeDashHits(e, player) {
+    if (dist(e.x, e.y, player.x, player.y) >= e.r + player.r) return false;
+    const half = e.dash && e.dash.half;
+    if (half == null) return true;
+    const face = e.facing || { x: 1, y: 0 };
+    const dx = player.x - e.x;
+    const dy = player.y - e.y;
+    return Math.abs(dx * face.y - dy * face.x) < half;
+}
+
 function updateBoss(e, game, dt) {
     decayKick(e, dt);
     e.hitFlash = Math.max(0, e.hitFlash - dt);
     const player = game.player;
     if (e.state === "approach") {
-        const dir = normalize(player.x - e.x, player.y - e.y);
-        if (dir.x || dir.y) e.facing = dir;
-        let mx = dir.x;
-        let my = dir.y;
-        let speed = e.speed;
-        if (e.bossId === "shadow") {
-            const orbit = normalize(dir.x * 0.35 - dir.y, dir.y * 0.35 + dir.x);
-            mx = orbit.x;
-            my = orbit.y;
-        } else if (e.bossId === "hooded") {
-            speed *= 0.35;
-        } else if (e.bossId === "dark") {
-            speed *= 0.58;
-        } else if (e.bossId === "chrome" && e.intro) {
-            speed *= PHASMA_OPEN.approach;
+        if (e.clearGrace > 0) {
+            e.clearGrace -= dt;
+            slide(e, e.kx * dt, e.ky * dt, game);
+        } else {
+            const dir = normalize(player.x - e.x, player.y - e.y);
+            if (dir.x || dir.y) e.facing = dir;
+            let mx = dir.x;
+            let my = dir.y;
+            let speed = e.speed;
+            if (e.bossId === "shadow") {
+                const orbit = normalize(dir.x * 0.35 - dir.y, dir.y * 0.35 + dir.x);
+                mx = orbit.x;
+                my = orbit.y;
+            } else if (e.bossId === "hooded") {
+                speed *= 0.35;
+            } else if (e.bossId === "dark") {
+                speed *= 0.58;
+            } else if (e.bossId === "chrome") {
+                speed *= e.intro ? PHASMA_OPEN.approach : PHASMA_CLEAR.approach;
+                if (!e.intro) {
+                    const gap = dist(e.x, e.y, player.x, player.y);
+                    if (gap < PHASMA_CLEAR.standoff - 10) {
+                        mx = -dir.x;
+                        my = -dir.y;
+                    } else if (gap < PHASMA_CLEAR.standoff) {
+                        speed = 0;
+                    }
+                }
+            }
+            slide(e, (mx * speed + e.kx) * dt, (my * speed + e.ky) * dt, game);
+            e.timer -= dt;
+            const reach = e.bossId === "hooded" ? 320 : e.bossId === "shadow" ? 250 : e.bossId === "chrome" ? 200 : e.bossId === "dark" ? 168 : 148;
+            if (e.timer <= 0 && dist(e.x, e.y, player.x, player.y) < reach) startTelegraph(e, game);
         }
-        slide(e, (mx * speed + e.kx) * dt, (my * speed + e.ky) * dt, game);
-        e.timer -= dt;
-        const reach = e.bossId === "hooded" ? 320 : e.bossId === "shadow" ? 250 : e.bossId === "chrome" ? 200 : e.bossId === "dark" ? 168 : 148;
-        if (e.timer <= 0 && dist(e.x, e.y, player.x, player.y) < reach) startTelegraph(e, game);
     } else if (e.state === "telegraph") {
         if (e.telegraph && e.telegraph.kind === "tether") {
             e.telegraph.x2 = player.x;
@@ -170,9 +197,10 @@ function updateBoss(e, game, dt) {
         if (e.dash) {
             slide(e, e.dash.x * dt, e.dash.y * dt, game);
             e.dash.t -= dt;
-            if (dist(e.x, e.y, player.x, player.y) < e.r + player.r) {
-                Combat.hurtPlayer(game, 1, e.x, e.y);
-            }
+            const clipped = e.bossId === "chrome"
+                ? chromeDashHits(e, player)
+                : dist(e.x, e.y, player.x, player.y) < e.r + player.r;
+            if (clipped) Combat.hurtPlayer(game, 1, e.x, e.y);
             if (e.dash.t <= 0) e.dash = null;
         } else {
             slide(e, e.kx * dt, e.ky * dt, game);
@@ -339,6 +367,7 @@ const Entities = {
             state: "approach",
             timer: bossId === "chrome" ? PHASMA_OPEN.delay : 0.7,
             intro: bossId === "chrome",
+            clearGrace: 0,
             telegraph: null,
             dash: null,
             blink: null,
@@ -613,7 +642,7 @@ function drawTelegraph(ctx, e, cam) {
         ctx.rotate(Math.atan2(t.dir.y, t.dir.x));
         const opening = !!e.intro;
         ctx.lineWidth = opening ? 3 : 2;
-        ctx.globalAlpha = opening ? 0.62 : 0.35;
+        ctx.globalAlpha = opening ? 0.62 : PHASMA_CLEAR.alpha;
         ctx.fillRect(8, -t.width / 2, t.len, t.width);
         ctx.globalAlpha = 1;
         ctx.strokeRect(8, -t.width / 2, t.len, t.width);
