@@ -1,4 +1,4 @@
-// Star Station Adventure — constants.
+// Star Wars Adventure — constants.
 // The playfield keeps a fixed height and widens with the window.
 
 const CANVAS_H = 600;
@@ -40,7 +40,7 @@ const SABERS = [
 
 const HEROES = {
     lucan: {
-        name: "Lucan",
+        name: "Luke Skywalker",
         blurb: "Longer reach. Hope Strike mends a heart when it lands.",
         maxHp: 6,
         speed: 156,
@@ -50,7 +50,7 @@ const HEROES = {
         cooldown: 0.36,
     },
     rae: {
-        name: "Rae",
+        name: "Rey",
         blurb: "Quicker steps. Staff Spin hits every foe around you.",
         maxHp: 6,
         speed: 196,
@@ -60,7 +60,7 @@ const HEROES = {
         cooldown: 0.3,
     },
     chewoo: {
-        name: "Chewoo",
+        name: "Chewbacca",
         blurb: "More hearts. Bowcaster Blast reaches across the deck.",
         maxHp: 8,
         speed: 136,
@@ -72,8 +72,8 @@ const HEROES = {
 };
 
 // Gene lock: hotkeys stay on this order. The third boss grants no power.
-// Rock Toss is slot 4. Primary find is the chest after the Dark Lord.
-// Fallback, only if that chest cannot be reached: Fallen Knight also grants it.
+// Rock Toss is slot 4. Primary find is the chest between Darth Vader and Kylo Ren.
+// Fallback, only if that chest cannot be reached: Kylo Ren also grants it.
 const POWERS = {
     push: { slot: "1", code: "Digit1", name: "Force Push" },
     throw: { slot: "2", code: "Digit2", name: "Saber Throw" },
@@ -88,8 +88,8 @@ const SAVE_PREFIX = "starStationAdventure.";
 const WIN_LINE = "Part Two coming soon!";
 
 const ACHIEVEMENTS = {
-    saved: "Station Saved",
-    sticker: "Chewoo-bot Sticker",
+    saved: "Death Star Saved",
+    sticker: "Chewbacca-bot Sticker",
 };
 
 const GUARD_STATS = {
@@ -100,9 +100,9 @@ const GUARD_STATS = {
 };
 
 const BOSS_STATS = {
-    chrome: { name: "Chrome Captain", hp: 26, speed: 68, gap: 1.05 },
-    shadow: { name: "Shadow Seeker", hp: 30, speed: 78, gap: 1.2 },
-    dark: { name: "Dark Lord", hp: 36, speed: 54, gap: 1.25 },
-    fallen: { name: "Fallen Knight", hp: 28, speed: 88, gap: 0.95 },
-    hooded: { name: "Hooded Master", hp: 42, speed: 64, gap: 1.05 },
+    chrome: { name: "Captain Phasma", hp: 26, speed: 68, gap: 1.05 },
+    shadow: { name: "Inquisitor", hp: 30, speed: 78, gap: 1.2 },
+    dark: { name: "Darth Vader", hp: 36, speed: 54, gap: 1.25 },
+    fallen: { name: "Kylo Ren", hp: 28, speed: 88, gap: 0.95 },
+    hooded: { name: "Emperor", hp: 42, speed: 64, gap: 1.05 },
 };

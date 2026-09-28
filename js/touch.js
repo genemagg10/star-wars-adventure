@@ -1,4 +1,4 @@
-// Star Station Adventure — landscape stick plus three actions.
+// Star Wars Adventure — landscape stick plus three actions.
 
 const TouchControls = {
     vec: { x: 0, y: 0 },

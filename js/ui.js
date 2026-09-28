@@ -1,4 +1,4 @@
-// Star Station Adventure — menus and the quiet HUD.
+// Star Wars Adventure — menus and the quiet HUD.
 
 const UI = {
     cardOpen: false,
@@ -143,7 +143,7 @@ const UI = {
 
     showColor() {
         const name = HEROES[Game.pendingHero] ? HEROES[Game.pendingHero].name : "Hero";
-        document.getElementById("color-who").textContent = name + " — choose a saber color.";
+        document.getElementById("color-who").textContent = name + " — choose a lightsaber color.";
         this.show("screen-color");
     },
 
@@ -215,7 +215,7 @@ const UI = {
             Sprites.draw(ctx, i < hearts ? "heart" : "heart-empty", 20 + i * 18, 24, false);
         }
 
-        let text = "Battle Station";
+        let text = "Death Star";
         if (chase) {
             const left = Math.max(0, Math.ceil(game.chase.duration - game.chase.t));
             text = "Survive the chase lane · " + left + "s";

@@ -1,6 +1,6 @@
-// Star Station Adventure — linear decks aboard the Battle Station.
-// Rock Toss primary path: the Trash Compactor chest sits between the Dark Lord
-// and the Fallen Knight. If that chest cannot be reached, Fallen Knight grants it.
+// Star Wars Adventure — linear decks aboard the Death Star.
+// Rock Toss primary path: the Trash Compactor chest sits between Darth Vader
+// and Kylo Ren. If that chest cannot be reached, Kylo Ren grants it.
 
 function makeGrid(w, h) {
     const g = [];
@@ -149,11 +149,11 @@ const FLOOR_CYCLE = {
 const World = {
     sectors: [
         { id: "dock", name: "Docking Ring", bossId: null, needsChest: false, build: deckDock },
-        { id: "hangar", name: "Chrome Hangar", bossId: "chrome", needsChest: false, build: deckHangar },
-        { id: "conduit", name: "Shadow Conduit", bossId: "shadow", needsChest: false, build: deckConduit },
+        { id: "hangar", name: "Phasma Hangar", bossId: "chrome", needsChest: false, build: deckHangar },
+        { id: "conduit", name: "Inquisitor Conduit", bossId: "shadow", needsChest: false, build: deckConduit },
         { id: "gallery", name: "Throne Gallery", bossId: "dark", needsChest: false, build: deckGallery },
         { id: "trash", name: "Trash Compactor", bossId: null, needsChest: true, build: deckTrash },
-        { id: "fallen", name: "Fallen Deck", bossId: "fallen", needsChest: false, build: deckFallen },
+        { id: "fallen", name: "Kylo Deck", bossId: "fallen", needsChest: false, build: deckFallen },
         { id: "core", name: "Core Gate", bossId: "hooded", needsChest: false, build: deckCore },
     ],
 

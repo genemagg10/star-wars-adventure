@@ -1,4 +1,4 @@
-// Star Station Adventure — procedural Web Audio.
+// Star Wars Adventure — procedural Web Audio.
 // The context stays suspended until the first gesture.
 
 const SoundSystem = {

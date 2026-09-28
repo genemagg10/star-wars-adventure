@@ -1,4 +1,4 @@
-// Star Station Adventure — small shared helpers.
+// Star Wars Adventure — small shared helpers.
 
 function dist(x1, y1, x2, y2) {
     const dx = x2 - x1;

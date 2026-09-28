@@ -1,4 +1,4 @@
-// Star Station Adventure — melee, powers, and shots.
+// Star Wars Adventure — lightsaber, Force powers, and shots.
 
 const POWER_DMG = { push: 3, throw: 4, lightning: 5, rock: 4 };
 

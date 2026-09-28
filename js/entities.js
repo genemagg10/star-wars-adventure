@@ -1,4 +1,4 @@
-// Star Station Adventure — heroes, white troopers, bosses, Little One.
+// Star Wars Adventure — heroes, stormtroopers, bosses, and Grogu.
 
 let NEXT_ENT_ID = 1;
 
@@ -172,7 +172,7 @@ const Entities = {
         return {
             id: NEXT_ENT_ID++,
             kind: "guard",
-            name: "White trooper",
+            name: "Stormtrooper",
             x: x,
             y: y,
             r: 7,
