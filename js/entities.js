@@ -180,7 +180,8 @@ function updateGuard(e, game, dt) {
     const d = dist(e.x, e.y, p.x, p.y);
     if (e.hp < e.maxHp) e.broken = true;
     const sight = (tx, ty) => game.solidAt(tx, ty);
-    const seen = d < 108 && !lineBlocked(sight, e.x, e.y, p.x, p.y);
+    const sightR = e.sight != null ? e.sight : 108;
+    const seen = d < sightR && !lineBlocked(sight, e.x, e.y, p.x, p.y);
     if (!e.broken && !seen) {
         if (e.homeX == null) {
             e.homeX = e.x;
@@ -198,26 +199,54 @@ function updateGuard(e, game, dt) {
     e.marching = false;
     if (dir.x || dir.y) e.facing = dir;
     e.timer -= dt;
-    if (d > 22) slide(e, (dir.x * e.speed + e.kx) * dt, (dir.y * e.speed + e.ky) * dt, game);
-    if (e.timer <= 0 && d < GUARD_STATS.range && !lineBlocked(sight, e.x, e.y, p.x, p.y)) {
-        e.timer = GUARD_STATS.shot;
-        const aim = Math.atan2(dir.y, dir.x) + (Math.random() - 0.5) * 0.4;
-        const spd = 118;
+    if (d > 22) {
+        let vx = dir.x * e.speed + e.kx;
+        let vy = dir.y * e.speed + e.ky;
+        if (e.avoidR) {
+            const nx = e.x + vx * dt;
+            const ny = e.y + vy * dt;
+            if (dist(nx, ny, e.avoidX, e.avoidY) < e.avoidR) {
+                vx = e.kx;
+                vy = e.ky;
+            }
+        }
+        slide(e, vx * dt, vy * dt, game);
+    } else {
+        slide(e, e.kx * dt, e.ky * dt, game);
+    }
+    keepOffTerminal(e, game);
+    const range = e.range != null ? e.range : GUARD_STATS.range;
+    const gap = e.shot != null ? e.shot : GUARD_STATS.shot;
+    const boltDmg = e.shotDmg != null ? e.shotDmg : 1;
+    const boltSpd = e.boltSpeed != null ? e.boltSpeed : 118;
+    const jitter = e.aimJitter != null ? e.aimJitter : 0.4;
+    const lessonSafe = e.avoidR && dist(p.x, p.y, e.avoidX, e.avoidY) < e.avoidR;
+    if (e.timer <= 0 && d < range && !lessonSafe && !lineBlocked(sight, e.x, e.y, p.x, p.y)) {
+        e.timer = gap;
+        const aim = Math.atan2(dir.y, dir.x) + (Math.random() - 0.5) * jitter;
         game.shots.push({
             kind: "bolt",
             team: "foe",
             x: e.x + dir.x * 12,
             y: e.y + dir.y * 12,
-            vx: Math.cos(aim) * spd,
-            vy: Math.sin(aim) * spd,
+            vx: Math.cos(aim) * boltSpd,
+            vy: Math.sin(aim) * boltSpd,
             r: 3,
-            dmg: 1,
+            dmg: boltDmg,
             life: 1.5,
             color: PALETTE.foam,
             hit: {},
         });
         SoundSystem.bolt();
     }
+}
+
+function keepOffTerminal(e, game) {
+    if (!e.avoidR) return;
+    const ad = dist(e.x, e.y, e.avoidX, e.avoidY);
+    if (ad >= e.avoidR || ad < 0.001) return;
+    const out = normalize(e.x - e.avoidX, e.y - e.avoidY);
+    slide(e, out.x * (e.avoidR - ad + 0.5), out.y * (e.avoidR - ad + 0.5), game);
 }
 
 const Entities = {
@@ -245,7 +274,9 @@ const Entities = {
         };
     },
 
-    makeGuard(x, y) {
+    makeGuard(x, y, opts) {
+        const o = opts || {};
+        const hp = o.hp != null ? o.hp : GUARD_STATS.hp;
         return {
             id: NEXT_ENT_ID++,
             kind: "guard",
@@ -253,9 +284,18 @@ const Entities = {
             x: x,
             y: y,
             r: 7,
-            hp: GUARD_STATS.hp,
-            maxHp: GUARD_STATS.hp,
-            speed: GUARD_STATS.speed,
+            hp: hp,
+            maxHp: hp,
+            speed: o.speed != null ? o.speed : GUARD_STATS.speed,
+            shot: o.shot != null ? o.shot : GUARD_STATS.shot,
+            range: o.range != null ? o.range : GUARD_STATS.range,
+            sight: o.sight != null ? o.sight : 108,
+            shotDmg: o.dmg != null ? o.dmg : 1,
+            boltSpeed: o.boltSpeed != null ? o.boltSpeed : 118,
+            aimJitter: o.aimJitter != null ? o.aimJitter : 0.4,
+            avoidX: o.avoidX || 0,
+            avoidY: o.avoidY || 0,
+            avoidR: o.avoidR || 0,
             facing: { x: 0, y: 1 },
             timer: Math.random() * 1.1,
             alive: true,
