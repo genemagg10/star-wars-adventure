@@ -46,6 +46,7 @@ function startTelegraph(e, game) {
             width: opening ? PHASMA_OPEN.laneWidth : PHASMA_CLEAR.laneWidth,
             color: PALETTE.foam,
         };
+        e.laneInside = 0;
         SoundSystem.swing();
     } else if (e.bossId === "shadow") {
         e.timer = 0.72;
@@ -83,7 +84,9 @@ function commitBossAttack(e, game) {
         e.hugT = 0;
         const dash = opening ? PHASMA_OPEN.dash : PHASMA_CLEAR.dash;
         const dashT = opening ? PHASMA_OPEN.dashTime : PHASMA_CLEAR.dashTime;
-        e.dash = { x: face.x * dash, y: face.y * dash, t: dashT, half: width / 2 };
+        const late = !opening && (e.laneInside || 0) < PHASMA_CLEAR.lateEntry;
+        e.dash = { x: face.x * dash, y: face.y * dash, t: dashT, half: width / 2, clearRush: !opening, forgive: late };
+        e.laneInside = 0;
     } else if (e.bossId === "shadow") {
         if (e.blink && !game.circleBlocked(e.blink.x, e.blink.y, e.r)) {
             e.x = e.blink.x;
@@ -144,6 +147,10 @@ function updateBoss(e, game, dt) {
     decayKick(e, dt);
     e.hitFlash = Math.max(0, e.hitFlash - dt);
     const player = game.player;
+    if (e.bossId === "chrome" && !e.intro && e.seenHp != null && e.hp < e.seenHp && e.state !== "telegraph") {
+        e.timer = Math.min(PHASMA_CLEAR.hold, (e.timer || 0) + PHASMA_CLEAR.hitStretch);
+    }
+    if (e.bossId === "chrome") e.seenHp = e.hp;
     if (e.state === "approach") {
         if (e.clearGrace > 0) {
             e.clearGrace -= dt;
@@ -219,6 +226,16 @@ function updateBoss(e, game, dt) {
             const face = e.facing || { x: 1, y: 0 };
             e.telegraph.pts = jaggedLine(e.x, e.y, e.x + face.x * 176, e.y + face.y * 176);
         }
+        if (e.bossId === "chrome" && e.telegraph && e.telegraph.kind === "lane") {
+            const face = e.telegraph.dir || e.facing || { x: 1, y: 0 };
+            const dx = player.x - e.x;
+            const dy = player.y - e.y;
+            const lat = Math.abs(dx * face.y - dy * face.x);
+            const along = dx * face.x + dy * face.y;
+            if (along > -8 && along < (e.telegraph.len || 148) && lat < e.telegraph.width / 2 + player.r) {
+                e.laneInside = (e.laneInside || 0) + dt;
+            }
+        }
         e.timer -= dt;
         if (e.timer <= 0) {
             e.state = "recover";
@@ -232,7 +249,19 @@ function updateBoss(e, game, dt) {
             const clipped = e.bossId === "chrome"
                 ? chromeDashHits(e, player)
                 : dist(e.x, e.y, player.x, player.y) < e.r + player.r;
-            if (clipped) Combat.hurtPlayer(game, 1, e.x, e.y);
+            if (clipped && e.dash && e.dash.forgive) {
+                if (!e.dash.shoved) {
+                    const away = normalize(player.x - e.x, player.y - e.y);
+                    player.kx += away.x * 80;
+                    player.ky += away.y * 80;
+                    e.dash.shoved = true;
+                }
+            } else if (clipped) {
+                Combat.hurtPlayer(game, 1, e.x, e.y);
+                if (e.dash && e.dash.clearRush && player.invuln < PHASMA_CLEAR.rushInvuln) {
+                    player.invuln = PHASMA_CLEAR.rushInvuln;
+                }
+            }
             if (e.dash.t <= 0) e.dash = null;
         } else {
             slide(e, e.kx * dt, e.ky * dt, game);

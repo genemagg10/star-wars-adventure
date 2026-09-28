@@ -150,23 +150,24 @@ const PHASMA_OPEN = {
     dashTime: 0.48,
 };
 
-// After the opening rush. The white lane is unchanged in spirit: same width,
-// same telegraph. What changes is the finish. She steps back into saber reach
-// and the next lane waits until that hold has actually lasted, so a kid who
-// stepped off can walk in, swing, and Force Push. Standing in the lane still
-// gets run over. A short step off the paint does not, because the rush no
-// longer carries her through a sidestep.
+// After the opening rush. The white lane stays the same width and telegraph.
+// The finish is the part that was still too tight: she steps back and the
+// next lane waits through a long hold, a hit stretches that hold, and a late
+// walk back into the rush does not take a heart. Camping the paint still does.
 const PHASMA_CLEAR = {
     approach: 0.7,
     telegraph: 1.55,
     laneWidth: 34,
     dash: 88,
     dashTime: 0.4,
-    grace: 1.05,
+    grace: 2.15,
     standoff: 50,
     alpha: 0.5,
-    hold: 2.2,
-    hug: 2.35,
+    hold: 3.6,
+    hug: 2.8,
+    hitStretch: 0.9,
+    lateEntry: 0.4,
+    rushInvuln: 2.2,
 };
 
 const ACHIEVEMENTS = {
