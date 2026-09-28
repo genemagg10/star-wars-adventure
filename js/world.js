@@ -156,7 +156,7 @@ function placeToys(g, ox, oy, ix, iy, sx, sy, len) {
 }
 
 const FLOOR_CYCLE = {
-    dock: ["floor", "floor-b", "floor-c"],
+    dock: ["floor-dock", "floor-dock-b", "floor-dock-c"],
     hangar: ["floor", "floor-y", "stripe"],
     conduit: ["floor-u", "floor", "floor-b"],
     trash: ["floor-c", "floor", "floor-b"],
@@ -253,14 +253,30 @@ const World = {
     },
 
     tileSprite(sector, ch, tx, ty, game) {
-        if (ch === "#") return "wall";
-        if (ch === "+") return "pillar";
+        const dock = sector.id === "dock";
+        if (ch === "#") {
+            if (!dock) return "wall";
+            const port = ((tx * 3 + ty * 5) % 7) === 0;
+            if (!port) return "wall-dock";
+            return Math.floor(game.time * 2 + tx + ty) % 2 === 0 ? "wall-dock-port" : "wall-dock-port-b";
+        }
+        if (ch === "+") return dock ? "pillar-dock" : "pillar";
         if (ch === "~") return Math.floor(game.time * 3) % 2 === 0 ? "hazard" : "hazard2";
         if (ch === "D") return game.secretOpen ? "door-open" : "door";
-        if (ch === "E") return game.exitOpen() ? "exit-open" : "exit";
+        if (ch === "E") {
+            if (dock) return game.exitOpen() ? "airlock-open" : "airlock";
+            return game.exitOpen() ? "exit-open" : "exit";
+        }
         if (ch === "C") return game.owns("rock") ? "floor" : "chest";
-        if (ch === "=") return Math.floor(game.time * 4 + tx) % 2 === 0 ? "stripe" : "stripe-b";
-        if (ch === "O") return Math.floor(game.time * 3 + tx + ty) % 2 === 0 ? "viewport" : "viewport-b";
+        if (ch === "=") {
+            if (dock) return Math.floor(game.time * 3 + tx) % 2 === 0 ? "glow" : "glow-b";
+            return Math.floor(game.time * 4 + tx) % 2 === 0 ? "stripe" : "stripe-b";
+        }
+        if (ch === "O") {
+            const on = Math.floor(game.time * 3 + tx + ty) % 2 === 0;
+            if (dock) return on ? "viewport-dock" : "viewport-dock-b";
+            return on ? "viewport" : "viewport-b";
+        }
         if (ch === "I") return "pipe";
         if (ch === "K") return "switch";
         if (ch === "L") return "switch";
@@ -290,6 +306,15 @@ const World = {
                     ctx.globalAlpha = pulse;
                     ctx.fillStyle = key === "stripe" ? PALETTE.blue : PALETTE.gold;
                     ctx.fillRect(Math.round(dx - TILE / 2), Math.round(dy - TILE / 2), TILE, 3);
+                    ctx.restore();
+                }
+                if (key === "glow" || key === "glow-b") {
+                    const pulse = 0.16 + 0.12 * (0.5 + 0.5 * Math.sin(game.time * 3 + tx * 0.35));
+                    ctx.save();
+                    ctx.globalCompositeOperation = "lighter";
+                    ctx.globalAlpha = pulse;
+                    ctx.fillStyle = PALETTE.blue;
+                    ctx.fillRect(Math.round(dx - TILE / 2 + 2), Math.round(dy - 1), TILE - 4, 3);
                     ctx.restore();
                 }
             }
