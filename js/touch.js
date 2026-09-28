@@ -10,6 +10,7 @@ const TouchControls = {
     powerTimer: 0,
     powerLong: false,
     powerPointer: null,
+    flick: null,
 
     init() {
         const stick = document.getElementById("stick");
@@ -17,6 +18,7 @@ const TouchControls = {
         if (!stick || !nub) return;
         const max = 46;
         let active = null;
+        let stickAt = 0;
 
         const place = (clientX, clientY) => {
             const rect = stick.getBoundingClientRect();
@@ -35,6 +37,15 @@ const TouchControls = {
 
         const endStick = (e) => {
             if (e.pointerId !== active) return;
+            const mag = Math.hypot(this.vec.x, this.vec.y);
+            const held = performance.now() - stickAt;
+            if (mag > 0.18) {
+                this.flick = {
+                    x: this.vec.x / mag,
+                    y: this.vec.y / mag,
+                    left: held < 280 ? 42 : 16,
+                };
+            }
             active = null;
             this.vec.x = 0;
             this.vec.y = 0;
@@ -43,6 +54,8 @@ const TouchControls = {
 
         stick.addEventListener("pointerdown", (e) => {
             active = e.pointerId;
+            stickAt = performance.now();
+            this.flick = null;
             stick.setPointerCapture(e.pointerId);
             place(e.clientX, e.clientY);
             SoundSystem.unlock();

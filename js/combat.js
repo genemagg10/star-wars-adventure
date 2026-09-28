@@ -76,8 +76,11 @@ const Combat = {
         const hero = HEROES[p.heroId];
         if (!hero || p.attackCd > 0 || p.hp <= 0) return;
         p.attackCd = hero.cooldown;
-        p.swing = 0.22;
+        p.swing = 0.26;
         p.ignite = 0.09;
+        const face = p.facing.x || p.facing.y ? p.facing : { x: 0, y: 1 };
+        p.swingFacing = { x: face.x, y: face.y };
+        p.facing = p.swingFacing;
         SoundSystem.swing();
         this.arcHit(game, p, hero.range, hero.damage, 0.2, 110);
     },
@@ -88,6 +91,9 @@ const Combat = {
         if (!hero || p.specialCd > 0 || p.hp <= 0) return;
         p.specialCd = hero.specialCooldown;
         p.specialKind = hero.special;
+        const face = p.facing.x || p.facing.y ? p.facing : { x: 0, y: 1 };
+        p.swingFacing = { x: face.x, y: face.y };
+        p.facing = p.swingFacing;
         if (hero.special === "hope") this.hopeStrike(game, p, hero);
         else if (hero.special === "spin") this.staffSpin(game, p, hero);
         else this.bowcasterBlast(game, p, hero);

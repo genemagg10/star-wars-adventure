@@ -202,6 +202,12 @@ const SoundSystem = {
         this.tone(659, 0.14, "sine", 0.14, 880);
     },
 
+    echo() {
+        this.tone(494, 0.12, "sine", 0.22, 784);
+        this.tone(659, 0.16, "triangle", 0.18, 988);
+        this.tone(784, 0.22, "sine", 0.14);
+    },
+
     hope() {
         this.hum();
         this.tone(523, 0.1, "triangle", 0.16, 784);

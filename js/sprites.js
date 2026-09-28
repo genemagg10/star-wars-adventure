@@ -735,6 +735,48 @@ const Sprites = {
         ctx.strokeStyle = PALETTE.foam;
         ctx.lineWidth = 2;
         ctx.stroke();
+        const tip = a0 + (a1 - a0) * 0.85;
+        const tx = x + Math.cos(tip) * radius;
+        const ty = y + Math.sin(tip) * radius;
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = PALETTE.foam;
+        ctx.beginPath();
+        ctx.arc(tx, ty, 5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(tx, ty, 3, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    },
+
+    drawAim(ctx, x, y, facing, color, strong) {
+        const fx = facing && facing.x ? facing.x : 0;
+        const fy = facing && facing.y ? facing.y : 0;
+        const ang = fx || fy ? Math.atan2(fy, fx) : Math.PI / 2;
+        const dist = strong ? 36 : 26;
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(ang);
+        ctx.strokeStyle = PALETTE.foam;
+        ctx.globalAlpha = strong ? 1 : 0.85;
+        ctx.lineWidth = strong ? 3 : 2;
+        ctx.beginPath();
+        ctx.moveTo(12, 0);
+        ctx.lineTo(dist - 4, 0);
+        ctx.stroke();
+        ctx.translate(dist, 0);
+        ctx.fillStyle = color;
+        ctx.globalAlpha = 1;
+        ctx.beginPath();
+        ctx.moveTo(10, 0);
+        ctx.lineTo(-8, 7);
+        ctx.lineTo(-4, 0);
+        ctx.lineTo(-8, -7);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = PALETTE.foam;
+        ctx.fillRect(-2, -1, 7, 2);
         ctx.restore();
     },
 };

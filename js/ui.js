@@ -2,6 +2,7 @@
 
 const UI = {
     cardOpen: false,
+    quickRetry: false,
     primary: null,
     controlsBack: "screen-title",
 
@@ -151,6 +152,7 @@ const UI = {
         const screens = document.querySelectorAll(".screen");
         for (let i = 0; i < screens.length; i++) screens[i].classList.add("hidden");
         this.cardOpen = false;
+        this.quickRetry = false;
     },
 
     showTitle() {
@@ -225,6 +227,7 @@ const UI = {
             if (!this.primary) this.primary = btn;
         }
         this.cardOpen = true;
+        this.quickRetry = !!opts.quick;
         this.show("screen-card");
     },
 
@@ -270,6 +273,7 @@ const UI = {
 
     hideCard() {
         this.cardOpen = false;
+        this.quickRetry = false;
         this.primary = null;
         document.getElementById("screen-card").classList.add("hidden");
     },

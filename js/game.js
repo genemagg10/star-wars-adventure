@@ -72,6 +72,13 @@ const MOVE_CODES = {
     ArrowUp: 1, ArrowDown: 1, ArrowLeft: 1, ArrowRight: 1,
 };
 
+const MOVE_AXIS = {
+    KeyW: { x: 0, y: -1 }, ArrowUp: { x: 0, y: -1 },
+    KeyS: { x: 0, y: 1 }, ArrowDown: { x: 0, y: 1 },
+    KeyA: { x: -1, y: 0 }, ArrowLeft: { x: -1, y: 0 },
+    KeyD: { x: 1, y: 0 }, ArrowRight: { x: 1, y: 0 },
+};
+
 const Game = {
     mode: "menu",
     time: 0,
@@ -80,7 +87,8 @@ const Game = {
     paused: false,
     down: {},
     pressed: {},
-    moveSticky: {},
+    moveAt: {},
+    tapNudge: null,
     camera: { x: 0, y: 0 },
     shake: 0,
     flash: 0,
@@ -162,9 +170,14 @@ const Game = {
             if (e.repeat) return;
             this.down[e.code] = true;
             this.pressed[e.code] = true;
-            if (MOVE_CODES[e.code]) this.moveSticky[e.code] = 0.16;
-            if (UI.cardOpen && (e.code === "Enter" || e.code === "KeyE")) {
+            if (MOVE_CODES[e.code]) {
+                this.moveAt[e.code] = this.time;
+                this.tapNudge = null;
+            }
+            const retryKey = UI.quickRetry && (e.code === "Space" || e.code === "KeyF");
+            if (UI.cardOpen && (e.code === "Enter" || e.code === "KeyE" || retryKey)) {
                 this.pressed[e.code] = false;
+                this.down[e.code] = false;
                 UI.activatePrimary();
                 return;
             }
@@ -172,6 +185,11 @@ const Game = {
         });
         window.addEventListener("keyup", (e) => {
             this.down[e.code] = false;
+            if (!MOVE_CODES[e.code]) return;
+            const started = this.moveAt[e.code];
+            const held = started == null ? 1 : this.time - started;
+            delete this.moveAt[e.code];
+            if (held < 0.24) this.addTapNudge(MOVE_AXIS[e.code]);
         });
         window.addEventListener("pointerdown", () => SoundSystem.unlock());
     },
@@ -190,15 +208,14 @@ const Game = {
         this.time += dt;
         this.shake = Math.max(0, this.shake - dt);
         this.flash = Math.max(0, this.flash - dt);
+        this.decayNudge(dt);
         if (this.hitStop > 0) {
             this.hitStop -= dt;
-            this.readInput();
             TouchControls.sync(this);
             this.draw();
             requestAnimationFrame((t) => this.loop(t));
             return;
         }
-        this.decaySticky(dt);
         const input = this.readInput();
         if (this.mode === "play") this.updatePlay(dt, input);
         else if (this.mode === "chase") this.updateChase(dt, input);
@@ -224,39 +241,61 @@ const Game = {
                 }
             }
         }
-        const step = (code) => this.down[code] || (this.moveSticky[code] > 0);
+        const step = (code) => !!this.down[code];
         let x = 0;
         let y = 0;
         if (step("KeyA") || step("ArrowLeft")) x -= 1;
         if (step("KeyD") || step("ArrowRight")) x += 1;
         if (step("KeyW") || step("ArrowUp")) y -= 1;
         if (step("KeyS") || step("ArrowDown")) y += 1;
+        const stickMag = Math.hypot(TouchControls.vec.x, TouchControls.vec.y);
         let move = { x: 0, y: 0 };
-        if (x || y) move = normalize(x, y);
-        else if (Math.hypot(TouchControls.vec.x, TouchControls.vec.y) > 0.12) {
+        if (x || y) {
+            move = normalize(x, y);
+            this.tapNudge = null;
+            TouchControls.flick = null;
+        } else if (this.tapNudge && (this.tapNudge.x || this.tapNudge.y) && this.tapNudge.left > 0) {
+            move = normalize(this.tapNudge.x, this.tapNudge.y);
+        } else if (stickMag > 0.12) {
             move = { x: TouchControls.vec.x, y: TouchControls.vec.y };
+            TouchControls.flick = null;
+        } else if (TouchControls.flick && TouchControls.flick.left > 0) {
+            move = { x: TouchControls.flick.x, y: TouchControls.flick.y };
         }
         return {
             move: move,
-            attack: !!this.down.Space || TouchControls.holding.attack,
-            special: !!this.down.KeyF || !!this.down.ShiftLeft || !!this.down.ShiftRight || TouchControls.holding.special || edges.special,
+            attack: !!this.down.Space || !!pressed.Space || TouchControls.holding.attack || edges.attack,
+            special: !!this.down.KeyF || !!pressed.KeyF || !!this.down.ShiftLeft || !!pressed.ShiftLeft || !!this.down.ShiftRight || !!pressed.ShiftRight || TouchControls.holding.special || edges.special,
             power: !!pressed.KeyQ || edges.power,
             powerTouch: !!edges.power && !pressed.KeyQ,
             interact: !!pressed.KeyE || edges.interact,
         };
     },
 
-    decaySticky(dt) {
-        const keys = Object.keys(this.moveSticky);
-        for (let i = 0; i < keys.length; i++) {
-            const k = keys[i];
-            if (this.moveSticky[k] > 0) this.moveSticky[k] = Math.max(0, this.moveSticky[k] - dt);
+    addTapNudge(axis) {
+        if (!axis) return;
+        if (!this.tapNudge) this.tapNudge = { x: 0, y: 0, left: 42 };
+        this.tapNudge.x += axis.x;
+        this.tapNudge.y += axis.y;
+        this.tapNudge.left = 42;
+    },
+
+    decayNudge(dt) {
+        const drain = 160 * dt;
+        if (this.tapNudge) {
+            this.tapNudge.left -= drain;
+            if (this.tapNudge.left <= 0) this.tapNudge = null;
+        }
+        if (TouchControls.flick) {
+            TouchControls.flick.left -= drain;
+            if (TouchControls.flick.left <= 0) TouchControls.flick = null;
         }
     },
 
     updatePlay(dt, input) {
         if (this.toastT > 0) this.toastT -= dt;
         if (this.bannerT > 0) this.bannerT -= dt;
+        if (this.player && this.player.hp <= 0 && !UI.cardOpen) this.onPlayerDown();
         if (this.frozen || !this.player) return;
         Entities.updateAll(this, dt, input);
         if (this.pending && !this.frozen) {
@@ -394,6 +433,8 @@ const Game = {
         this.hazardT = 0.4;
         this.pending = null;
         this.downed = false;
+        this.chase = null;
+        this.tapNudge = null;
         this.shots = [];
         this.fx = [];
         this.numbers = [];
@@ -643,10 +684,13 @@ const Game = {
     onBossDown(id) {
         if (this.bossesDown.indexOf(id) < 0) this.bossesDown.push(id);
         if (this.companion) {
-            this.companion.cheer = 1.45;
-            this.companion.wiggle = 1.2;
+            this.companion.cheer = 1.8;
+            this.companion.wiggle = 1.6;
             Combat.burst(this, this.companion.x, this.companion.y, PALETTE.gold);
-            this.fx.push({ kind: "ring", x: this.companion.x, y: this.companion.y, r: 8, life: 0.5, color: PALETTE.gold, grow: 160 });
+            Combat.burst(this, this.companion.x, this.companion.y - 10, PALETTE.foam);
+            Combat.confetti(this, this.companion.x, this.companion.y - 8);
+            this.fx.push({ kind: "ring", x: this.companion.x, y: this.companion.y, r: 10, life: 0.7, color: PALETTE.gold, grow: 240 });
+            this.fx.push({ kind: "ring", x: this.companion.x, y: this.companion.y, r: 4, life: 0.45, color: PALETTE.foam, grow: 140 });
             SoundSystem.cheer();
         }
         if (id === "chrome" && this.player) {
@@ -659,12 +703,14 @@ const Game = {
     },
 
     onPlayerDown() {
-        if (this.downed) return;
+        if (UI.cardOpen && this.downed) return;
         this.downed = true;
         this.pending = null;
+        this.paused = false;
         this.openCard({
             title: "Hull breach",
-            body: "The stormtroopers got through. This deck is still waiting.",
+            quick: true,
+            body: "The stormtroopers got through. Press Space to try this deck again.",
             buttons: [{
                 label: "Try this sector again",
                 onClick: () => {
@@ -874,6 +920,12 @@ const Game = {
         const c = this.chase;
         this.stepChaseSparks(c, dt);
         if (c.over) {
+            if (c.beat === "lose" && !c.card) {
+                this.paused = false;
+                c.card = true;
+                this.openChaseCard(c);
+                return;
+            }
             if (this.frozen && !c.card) return;
             if (c.beat === "win" && c.beatT > 0 && Math.random() < 0.55) {
                 this.chaseSpark(c, c.x + (Math.random() - 0.5) * 50, c.y + (Math.random() - 0.5) * 28, PALETTE.gold);
@@ -1005,7 +1057,16 @@ const Game = {
         if (c.over) return;
         c.over = true;
         c.beat = beat;
-        c.beatT = beat === "win" ? 0.62 : 0.42;
+        c.beatT = beat === "win" ? 0.62 : 0;
+        if (beat === "lose") {
+            this.paused = false;
+            this.frozen = false;
+            c.card = true;
+            this.flash = 0.18;
+            SoundSystem.hurt();
+            this.openChaseCard(c);
+            return;
+        }
         if (beat === "win") {
             SoundSystem.fanfare();
             for (let i = 0; i < 4; i++) this.chaseSpark(c, c.x, c.y, i % 2 ? PALETTE.gold : PALETTE.foam);
@@ -1014,9 +1075,6 @@ const Game = {
                 this.toast("You made it!");
                 this.toastT = 2.2;
             }
-        } else {
-            this.flash = 0.18;
-            SoundSystem.hurt();
         }
     },
 
@@ -1034,7 +1092,8 @@ const Game = {
         }
         this.openCard({
             title: "Lane breach",
-            body: lane.loseBody,
+            quick: true,
+            body: lane.loseBody + " Press Space to retry.",
             buttons: [
                 { label: "Retry the lane", onClick: () => this.startChase(lane.id) },
                 { label: lane.resolve ? "Skip the lane" : "Face the Emperor", onClick: () => this.finishChase(c) },
