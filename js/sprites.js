@@ -377,6 +377,8 @@ const ART = {
         "................",
     ]),
     "chewoo-down": art(16, [
+        "cc............cc",
+        ".c............c.",
         ".cc..........cc.",
         ".cccccccccccccc.",
         "ccmmccccccccmmcc",
@@ -395,6 +397,8 @@ const ART = {
         "................",
     ]),
     "chewoo-up": art(16, [
+        "cc............cc",
+        ".c............c.",
         ".cc..........cc.",
         ".cccccccccccccc.",
         "cccccccccccccccc",
@@ -413,6 +417,8 @@ const ART = {
         "................",
     ]),
     "chewoo-side": art(16, [
+        "....cc..........",
+        "...c............",
         "................",
         "...cccccccccc...",
         "..cccmmcccccc...",
@@ -592,6 +598,26 @@ const ART = {
         "............",
         "............",
     ]),
+    junk: art(8, [
+        "..yyyy..",
+        ".yppppy.",
+        ".pnnnnp.",
+        ".pnffnp.",
+        ".pnnnnp.",
+        ".yppppy.",
+        "..dddd..",
+        "........",
+    ]),
+    "junk-b": art(8, [
+        "...oo...",
+        "..oppo..",
+        ".opnnpo.",
+        ".pnnnnp.",
+        "..pnnnp.",
+        "...pp...",
+        "....d...",
+        "........",
+    ]),
     debris: art(8, [
         "..dddd..",
         ".ddnnnd.",
@@ -620,6 +646,8 @@ const SPRITE_SCALE = {
     bot: 2,
     "ship-twin": 2,
     "ship-snub": 2,
+    junk: 2,
+    "junk-b": 2,
     debris: 2,
 };
 
@@ -685,24 +713,27 @@ const Sprites = {
         ctx.restore();
     },
 
-    drawSwing(ctx, x, y, facing, range, color, swing) {
+    drawSwing(ctx, x, y, facing, range, color, swing, dur) {
         const ang = Math.atan2(facing.y, facing.x);
-        const along = 1 - Math.max(0, Math.min(1, swing / 0.14));
-        const span = 1.15;
-        const a0 = ang - span * 0.55 + along * span * 0.45;
+        const spanTime = dur || 0.22;
+        const along = 1 - Math.max(0, Math.min(1, swing / spanTime));
+        const span = 1.7;
+        const a0 = ang - span * 0.62 + along * span;
+        const a1 = a0 + span * 0.55;
+        const radius = Math.max(18, range * 0.86);
         ctx.save();
         ctx.lineCap = "round";
         ctx.strokeStyle = color;
-        ctx.globalAlpha = 0.35;
-        ctx.lineWidth = 8;
+        ctx.globalAlpha = 0.28;
+        ctx.lineWidth = 14;
         ctx.beginPath();
-        ctx.arc(x, y, range * 0.72, a0, a0 + span * 0.7);
+        ctx.arc(x, y, radius, a0, a1);
         ctx.stroke();
-        ctx.globalAlpha = 1;
-        ctx.lineWidth = 3;
+        ctx.globalAlpha = 0.95;
+        ctx.lineWidth = 5;
         ctx.stroke();
         ctx.strokeStyle = PALETTE.foam;
-        ctx.lineWidth = 1;
+        ctx.lineWidth = 2;
         ctx.stroke();
         ctx.restore();
     },

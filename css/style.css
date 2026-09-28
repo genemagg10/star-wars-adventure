@@ -425,11 +425,18 @@ body.playing.has-coarse.hud-lock #touch { display: none; }
 }
 
 #btn-attack { border-color: var(--danger); }
+#btn-special { border-color: var(--gold); }
 #btn-power { border-color: var(--lightning); }
 #btn-interact { border-color: var(--gold); }
 
+#btn-special.is-ready {
+    background: rgba(255, 200, 87, 0.2);
+    color: var(--gold);
+}
+
 #btn-power.is-idle,
-#btn-interact.is-idle {
+#btn-interact.is-idle,
+#btn-special.is-idle {
     opacity: 0.38;
     border-color: var(--panel);
 }
@@ -465,7 +472,7 @@ body.playing.has-coarse.hud-lock #touch { display: none; }
     .choice span { display: none; }
     .choice canvas { width: 48px; height: 48px; }
     #stick { width: 108px; height: 108px; }
-    #touch-actions button { width: 64px; height: 64px; font-size: 11px; }
+    #touch-actions button { width: 58px; height: 58px; font-size: 18px; }
     #power-chips { bottom: calc(max(8px, env(safe-area-inset-bottom)) + 74px); }
     .panel.loud h2 { font-size: 24px; }
 }

@@ -3,8 +3,8 @@
 
 const TouchControls = {
     vec: { x: 0, y: 0 },
-    holding: { attack: false, power: false, interact: false },
-    edges: { attack: false, power: false, interact: false },
+    holding: { attack: false, power: false, interact: false, special: false },
+    edges: { attack: false, power: false, interact: false, special: false },
     chipSig: "",
     faces: {},
     powerTimer: 0,
@@ -73,6 +73,7 @@ const TouchControls = {
             btn.addEventListener("pointercancel", up);
         };
         bind("btn-attack", "attack");
+        bind("btn-special", "special");
         bind("btn-interact", "interact");
         this.bindPower();
 
@@ -206,12 +207,19 @@ const TouchControls = {
         const act = game.interactContext ? game.interactContext() : null;
         const interact = document.getElementById("btn-interact");
         if (interact) interact.hidden = game.mode !== "play";
+        const specialBtn = document.getElementById("btn-special");
         if (game.mode === "chase") {
             this.setFace("btn-attack", "▲", "Fire", false);
             const canPush = game.owns("push");
             this.setFace("btn-power", canPush ? "◎" : "◇", canPush ? "Force Push" : "No power yet", !canPush);
+            if (specialBtn) specialBtn.hidden = true;
         } else {
+            if (specialBtn) specialBtn.hidden = false;
             this.setFace("btn-attack", "╱", "Lightsaber", false);
+            const hero = game.player && HEROES[game.player.heroId];
+            const cooling = !!(game.player && game.player.specialCd > 0);
+            const name = hero ? hero.specialName : "Special";
+            this.setFace("btn-special", hero ? hero.glyph : "✦", cooling ? name + ", cooling" : name, cooling);
             const id = game.activePower;
             const owned = id && game.owns(id);
             this.setFace("btn-power", owned ? glyphs[id] : "◇", owned ? POWERS[id].name : "No power yet", !owned);
@@ -240,10 +248,12 @@ const TouchControls = {
             attack: this.edges.attack,
             power: this.edges.power,
             interact: this.edges.interact,
+            special: this.edges.special,
         };
         this.edges.attack = false;
         this.edges.power = false;
         this.edges.interact = false;
+        this.edges.special = false;
         return out;
     },
 };

@@ -20,7 +20,7 @@ const CHASE_LANES = {
         foeHp: 2,
         shotGap: 1.2,
         winTitle: "Hangar clear",
-        winBody: "The X-wing breaks through the TIE fighters.",
+        winBody: "You made it! The X-wing breaks through the TIE fighters.",
         loseBody: "The TIE fighters caught the X-wing.",
     },
     bay: {
@@ -239,7 +239,9 @@ const Game = {
         return {
             move: move,
             attack: !!this.down.Space || TouchControls.holding.attack,
+            special: !!this.down.KeyF || !!this.down.ShiftLeft || !!this.down.ShiftRight || TouchControls.holding.special || edges.special,
             power: !!pressed.KeyQ || edges.power,
+            powerTouch: !!edges.power && !pressed.KeyQ,
             interact: !!pressed.KeyE || edges.interact,
         };
     },
@@ -351,7 +353,8 @@ const Game = {
         this.frozen = false;
         UI.hideAll();
         this.enterSector(0);
-        this.toast("Move, swing the lightsaber, interact");
+        const hero = HEROES[heroId];
+        this.toast("Space swings. F is " + (hero ? hero.specialName : "your special") + ".");
         this.toastT = 4.2;
         this.save();
     },
@@ -475,6 +478,10 @@ const Game = {
         }
         if (this.enemies.some((e) => e.alive)) {
             this.objective = s.clearGoal || "Clear the deck";
+            return;
+        }
+        if (s.id === "hangar" && s.exit) {
+            this.objective = "You made it!";
             return;
         }
         if (s.exit) this.objective = s.exitGoal || "Reach the north lock";
@@ -635,8 +642,20 @@ const Game = {
 
     onBossDown(id) {
         if (this.bossesDown.indexOf(id) < 0) this.bossesDown.push(id);
+        if (this.companion) {
+            this.companion.cheer = 1.45;
+            this.companion.wiggle = 1.2;
+            Combat.burst(this, this.companion.x, this.companion.y, PALETTE.gold);
+            this.fx.push({ kind: "ring", x: this.companion.x, y: this.companion.y, r: 8, life: 0.5, color: PALETTE.gold, grow: 160 });
+            SoundSystem.cheer();
+        }
+        if (id === "chrome" && this.player) {
+            Combat.confetti(this, this.player.x, this.player.y - 12);
+            this.toast("You made it!");
+            this.toastT = 2.4;
+        }
         this.save();
-        this.pending = { t: 0.55, id: id };
+        this.pending = { t: 0.72, id: id };
     },
 
     onPlayerDown() {
@@ -835,6 +854,7 @@ const Game = {
             enemies: [],
             shots: [],
             sparks: [],
+            confetti: [],
             spawn: 0.2,
             spawnN: 0,
             over: false,
@@ -989,6 +1009,11 @@ const Game = {
         if (beat === "win") {
             SoundSystem.fanfare();
             for (let i = 0; i < 4; i++) this.chaseSpark(c, c.x, c.y, i % 2 ? PALETTE.gold : PALETTE.foam);
+            if (c.lane.id === "hangar") {
+                this.spawnChaseConfetti(c, c.x, c.y - 24, 40);
+                this.toast("You made it!");
+                this.toastT = 2.2;
+            }
         } else {
             this.flash = 0.18;
             SoundSystem.hurt();
@@ -1060,6 +1085,32 @@ const Game = {
             s.y += s.vy * dt;
             s.life -= dt;
             if (s.life <= 0) c.sparks.splice(i, 1);
+        }
+        if (!c.confetti) c.confetti = [];
+        for (let i = c.confetti.length - 1; i >= 0; i--) {
+            const bit = c.confetti[i];
+            bit.x += bit.vx * dt;
+            bit.y += bit.vy * dt;
+            bit.vy += 90 * dt;
+            bit.life -= dt;
+            if (bit.life <= 0) c.confetti.splice(i, 1);
+        }
+    },
+
+    spawnChaseConfetti(c, x, y, n) {
+        if (!c.confetti) c.confetti = [];
+        const colors = [PALETTE.gold, PALETTE.foam, PALETTE.blue, PALETTE.green];
+        for (let i = 0; i < n; i++) {
+            c.confetti.push({
+                x: x + (Math.random() - 0.5) * 80,
+                y: y,
+                vx: (Math.random() - 0.5) * 120,
+                vy: -40 - Math.random() * 110,
+                life: 0.9 + Math.random() * 0.6,
+                color: colors[i % colors.length],
+                w: 2 + (i % 3),
+                h: 3 + (i % 2),
+            });
         }
     },
 
@@ -1194,6 +1245,14 @@ const Game = {
             ctx.fillRect(s.x - 1, s.y - 1, 3, 3);
             ctx.globalAlpha = 1;
         }
+        const bits = c.confetti || [];
+        for (let i = 0; i < bits.length; i++) {
+            const bit = bits[i];
+            ctx.globalAlpha = Math.max(0, Math.min(1, bit.life));
+            ctx.fillStyle = bit.color;
+            ctx.fillRect(bit.x, bit.y, bit.w || 3, bit.h || 3);
+            ctx.globalAlpha = 1;
+        }
         if (!(c.invuln > 0 && Math.floor(this.time * 16) % 2 === 0)) {
             blitShip(ctx, "ship-twin", c.x, c.y, c.facing.x || c.facing.y ? c.facing : { x: 0, y: -1 });
         }
@@ -1207,68 +1266,127 @@ const Game = {
             ctx.fillStyle = PALETTE.hull;
             for (let i = 0; i < 8; i++) {
                 const y = ((i * 90 + c.t * speed) % (CANVAS_H + 90)) - 40;
-                ctx.fillRect(CANVAS_W * 0.22, y, 14, 48);
-                ctx.fillRect(CANVAS_W * 0.78 - 14, y, 14, 48);
+                ctx.fillRect(CANVAS_W * 0.18, y, 18, 64);
+                ctx.fillRect(CANVAS_W * 0.82 - 18, y, 18, 64);
             }
             ctx.fillStyle = accent;
             for (let i = 0; i < 8; i++) {
                 const y = ((i * 90 + c.t * speed) % (CANVAS_H + 90)) - 28;
-                ctx.fillRect(CANVAS_W * 0.22 + 4, y, 6, 6);
-                ctx.fillRect(CANVAS_W * 0.78 - 10, y, 6, 6);
+                ctx.fillRect(CANVAS_W * 0.18 + 5, y, 8, 8);
+                ctx.fillRect(CANVAS_W * 0.82 - 13, y, 8, 8);
             }
+            ctx.fillStyle = PALETTE.panel;
+            ctx.fillRect(CANVAS_W * 0.18, 0, CANVAS_W * 0.64, 10);
             return;
         }
         if (props === "trench") {
-            const wall = Math.max(64, (c.lane.margin || 108) - 28);
+            const wall = Math.max(72, (c.lane.margin || 108) - 18);
             ctx.fillStyle = PALETTE.panel;
             ctx.fillRect(0, 0, wall, CANVAS_H);
             ctx.fillRect(CANVAS_W - wall, 0, wall, CANVAS_H);
             ctx.fillStyle = PALETTE.hull;
-            for (let i = 0; i < 10; i++) {
-                const y = ((i * 70 + c.t * speed) % (CANVAS_H + 70)) - 24;
-                ctx.fillRect(wall - 16, y, 16, 28);
-                ctx.fillRect(CANVAS_W - wall, y, 16, 28);
+            for (let i = 0; i < 9; i++) {
+                const y = ((i * 78 + c.t * speed) % (CANVAS_H + 78)) - 30;
+                ctx.fillRect(wall - 34, y, 34, 46);
+                ctx.fillRect(CANVAS_W - wall, y, 34, 46);
+                ctx.fillStyle = PALETTE.ink;
+                ctx.fillRect(wall - 34, y + 8, 12, 18);
+                ctx.fillRect(CANVAS_W - wall + 22, y + 8, 12, 18);
+                ctx.fillStyle = PALETTE.hull;
             }
             ctx.fillStyle = accent;
-            for (let i = 0; i < 10; i++) {
-                const y = ((i * 70 + c.t * speed) % (CANVAS_H + 70)) - 8;
-                ctx.fillRect(8, y, 10, 4);
-                ctx.fillRect(CANVAS_W - 18, y, 10, 4);
+            for (let i = 0; i < 12; i++) {
+                const y = ((i * 56 + c.t * (speed + 80)) % (CANVAS_H + 56)) - 8;
+                ctx.fillRect(wall + 6, y, CANVAS_W - wall * 2 - 12, 3);
             }
+            ctx.fillStyle = PALETTE.foam;
+            ctx.globalAlpha = 0.35;
+            for (let i = 0; i < 8; i++) {
+                const y = ((i * 90 + c.t * speed) % (CANVAS_H + 90)) - 12;
+                ctx.fillRect(10, y, 14, 4);
+                ctx.fillRect(CANVAS_W - 24, y, 14, 4);
+            }
+            ctx.globalAlpha = 1;
             return;
         }
         ctx.fillStyle = PALETTE.hull;
-        for (let i = 0; i < 12; i++) {
-            const y = ((i * 64 + c.t * speed) % (CANVAS_H + 64)) - 28;
-            ctx.fillRect(22, y, 10, 26);
-            ctx.fillRect(CANVAS_W - 32, y, 10, 26);
+        for (let i = 0; i < 10; i++) {
+            const y = ((i * 72 + c.t * speed) % (CANVAS_H + 72)) - 20;
+            ctx.fillStyle = i % 2 === 0 ? PALETTE.blue : PALETTE.gold;
+            ctx.globalAlpha = 0.55;
+            ctx.fillRect(36, y, CANVAS_W - 72, 6);
+            ctx.globalAlpha = 1;
         }
-        ctx.fillStyle = accent;
-        for (let i = 0; i < 8; i++) {
-            const y = ((i * 84 + c.t * (speed + 40)) % (CANVAS_H + 84)) - 36;
-            ctx.fillRect(CANVAS_W / 2 - 2, y, 4, 14);
+        ctx.fillStyle = PALETTE.panel;
+        for (let i = 0; i < 6; i++) {
+            const y = ((i * 120 + c.t * (speed * 0.6)) % (CANVAS_H + 120)) - 40;
+            ctx.fillRect(8, y, 22, 36);
+            ctx.fillRect(CANVAS_W - 30, y, 22, 36);
+            ctx.fillStyle = PALETTE.gold;
+            ctx.fillRect(14, y + 8, 8, 8);
+            ctx.fillRect(CANVAS_W - 22, y + 8, 8, 8);
+            ctx.fillStyle = PALETTE.panel;
         }
+        this.drawHangarDoors(ctx, c);
+    },
+
+    drawHangarDoors(ctx, c) {
+        const open = c.beat === "win" ? Math.max(0, Math.min(1, 1 - c.beatT / 0.62)) : 0;
+        const gap = 18 + open * (CANVAS_W * 0.28);
+        ctx.fillStyle = PALETTE.panel;
+        ctx.fillRect(0, 0, CANVAS_W / 2 - gap, 26);
+        ctx.fillRect(CANVAS_W / 2 + gap, 0, CANVAS_W / 2 - gap, 26);
+        ctx.fillStyle = PALETTE.gold;
+        ctx.fillRect(CANVAS_W / 2 - gap - 4, 0, 4, 26);
+        ctx.fillRect(CANVAS_W / 2 + gap, 0, 4, 26);
     },
 
     drawChaseFoe(ctx, c, e) {
         const face = { x: e.vx, y: Math.max(0.2, e.vy) };
         if (e.kind === "turret") {
+            ctx.fillStyle = PALETTE.hull;
+            ctx.fillRect(e.x - 10, e.y - 22, 20, 40);
             ctx.fillStyle = PALETTE.panel;
-            ctx.fillRect(e.x - 8, e.y - 12, 16, 22);
-            ctx.fillStyle = c.lane.accent;
-            ctx.fillRect(e.x - 3, e.y - 4, 6, 6);
+            ctx.fillRect(e.x - 6, e.y - 8, 12, 16);
+            ctx.fillStyle = PALETTE.danger;
+            ctx.fillRect(e.x - 3, e.y - 2, 6, 6);
             return;
         }
         if (e.kind === "debris") {
             blitShip(ctx, "debris", e.x, e.y, face);
+            ctx.fillStyle = PALETTE.metal;
+            ctx.fillRect(e.x - 10, e.y - 2, 6, 4);
+            ctx.fillRect(e.x + 4, e.y + 4, 5, 3);
             return;
         }
         if (e.kind === "shuttle") {
+            ctx.fillStyle = PALETTE.panel;
+            ctx.fillRect(e.x - 16, e.y - 10, 32, 6);
             ctx.fillStyle = PALETTE.orange;
-            ctx.fillRect(e.x - 10, e.y - 6, 20, 8);
-            blitShip(ctx, "ship-snub", e.x, e.y + 6, face);
+            ctx.fillRect(e.x - 6, e.y - 14, 12, 4);
+            blitShip(ctx, "ship-snub", e.x, e.y + 8, face);
             return;
         }
+        ctx.save();
+        ctx.translate(Math.round(e.x), Math.round(e.y));
+        ctx.strokeStyle = PALETTE.panel;
+        ctx.fillStyle = PALETTE.ink;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(-22, -8);
+        ctx.lineTo(-8, 0);
+        ctx.lineTo(-22, 8);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(22, -8);
+        ctx.lineTo(8, 0);
+        ctx.lineTo(22, 8);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
         blitShip(ctx, "ship-snub", e.x, e.y, face);
     },
 };

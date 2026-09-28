@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#0B1020">
     <title>Star Wars Adventure — by Jordan</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect fill='%230B1020' width='16' height='16'/%3E%3Cpath fill='%23FFC857' d='M8 1 L15 8 L8 15 L1 8 Z'/%3E%3C/svg%3E">
-    <link rel="stylesheet" href="css/style.css?v=20260928-waveA4">
+    <link rel="stylesheet" href="css/style.css?v=20260928-waveB1">
 </head>
 <body>
     <div id="rotate-gate">
@@ -63,12 +63,13 @@
                 <ul class="keys">
                     <li><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> Move</li>
                     <li><kbd>Space</kbd> Lightsaber</li>
+                    <li><kbd>F</kbd> or <kbd>Shift</kbd> Hero special</li>
                     <li><kbd>Q</kbd> Use Force power</li>
                     <li><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><kbd>4</kbd> Select Force power</li>
                     <li><kbd>E</kbd> Interact</li>
                     <li><kbd>Esc</kbd> Pause</li>
                 </ul>
-                <p class="lede">On a phone, turn sideways. The stick moves you. The slash button swings. A short tap on the power glyph uses the lit Force power. Hold it to switch to the next unlocked power, or tap a slot 1–4. Dark slots are locked, and Power stays dim until you own one. Interact stays dim until a Force terminal, salvage chest, side hatch, north lock, or chase pad is in reach, then the symbol names that thing. A quick tap on the move keys still takes a short step. Pause opens the menu. Mute lives on the title and on this pause menu.</p>
+                <p class="lede">On a phone, turn sideways. The stick moves you. The slash button swings. The gold special face is Hope Strike, Staff Spin, or Bowcaster Blast, and it dims while that toy cools down. A short tap on the power glyph uses the lit Force power. Hold it to switch to the next unlocked power, or tap a slot 1–4. Dark slots are locked, and Power stays dim until you own one. On a phone, Saber Throw bends toward the nearest foe. Interact stays dim until a Force terminal, salvage chest, side hatch, north lock, or chase pad is in reach, then the symbol names that thing. A quick tap on the move keys still takes a short step. Pause opens the menu. Mute lives on the title and on this pause menu.</p>
                 <div class="actions">
                     <button type="button" id="controls-back">Back</button>
                 </div>
@@ -116,22 +117,23 @@
             <div id="power-chips" data-empty="1"></div>
             <div id="touch-actions">
                 <button type="button" id="btn-attack" aria-label="Lightsaber">╱</button>
+                <button type="button" id="btn-special" aria-label="Special">✦</button>
                 <button type="button" id="btn-power" class="is-idle" aria-label="No power yet">◇</button>
                 <button type="button" id="btn-interact" class="is-idle" aria-label="Nothing nearby">·</button>
             </div>
         </div>
     </div>
 
-    <script src="js/constants.js?v=20260928-waveA4"></script>
-    <script src="js/utils.js?v=20260928-waveA4"></script>
-    <script src="js/sprites.js?v=20260928-waveA4"></script>
-    <script src="js/sound.js?v=20260928-waveA4"></script>
-    <script src="js/touch.js?v=20260928-waveA4"></script>
-    <script src="js/save.js?v=20260928-waveA4"></script>
-    <script src="js/combat.js?v=20260928-waveA4"></script>
-    <script src="js/entities.js?v=20260928-waveA4"></script>
-    <script src="js/world.js?v=20260928-waveA4"></script>
-    <script src="js/ui.js?v=20260928-waveA4"></script>
-    <script src="js/game.js?v=20260928-waveA4"></script>
+    <script src="js/constants.js?v=20260928-waveB1"></script>
+    <script src="js/utils.js?v=20260928-waveB1"></script>
+    <script src="js/sprites.js?v=20260928-waveB1"></script>
+    <script src="js/sound.js?v=20260928-waveB1"></script>
+    <script src="js/touch.js?v=20260928-waveB1"></script>
+    <script src="js/save.js?v=20260928-waveB1"></script>
+    <script src="js/combat.js?v=20260928-waveB1"></script>
+    <script src="js/entities.js?v=20260928-waveB1"></script>
+    <script src="js/world.js?v=20260928-waveB1"></script>
+    <script src="js/ui.js?v=20260928-waveB1"></script>
+    <script src="js/game.js?v=20260928-waveB1"></script>
 </body>
 </html>

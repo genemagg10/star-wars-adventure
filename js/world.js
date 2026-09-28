@@ -295,6 +295,7 @@ const World = {
             }
         }
         if (sector.id === "hangar") this.drawParkedSnub(ctx, camera);
+        if (sector.id === "trash") this.drawJunk(ctx, camera, game);
         const accent = sector.accent || PALETTE.blue;
         ctx.save();
         ctx.fillStyle = accent;
@@ -305,6 +306,30 @@ const World = {
         ctx.lineWidth = 4;
         ctx.strokeRect(3, 3, CANVAS_W - 6, CANVAS_H - 6);
         ctx.restore();
+    },
+
+    drawJunk(ctx, camera, game) {
+        const bits = [
+            { x: 18, y: 16, key: "junk", ph: 0 },
+            { x: 24, y: 19, key: "junk-b", ph: 1.1 },
+            { x: 33, y: 15, key: "junk", ph: 2.2 },
+            { x: 40, y: 18, key: "junk-b", ph: 0.4 },
+            { x: 27, y: 21, key: "junk", ph: 1.7 },
+            { x: 36, y: 23, key: "junk-b", ph: 2.6 },
+            { x: 46, y: 20, key: "junk", ph: 0.8 },
+        ];
+        for (let i = 0; i < bits.length; i++) {
+            const bit = bits[i];
+            const bob = Math.sin(game.time * 2.1 + bit.ph) * 5;
+            const drift = Math.sin(game.time * 0.7 + bit.ph) * 3;
+            Sprites.draw(
+                ctx,
+                bit.key,
+                bit.x * TILE + TILE / 2 - camera.x + drift,
+                bit.y * TILE + TILE / 2 - camera.y + bob,
+                false
+            );
+        }
     },
 
     drawParkedSnub(ctx, camera) {
