@@ -822,9 +822,10 @@ const Game = {
         this.openCard({
             title: "Try again",
             quick: true,
+            fail: true,
             body: "That one got you. Press Space to jump back in.",
             buttons: [{
-                label: "Try again",
+                label: "Retry",
                 onClick: () => {
                     this.closeCard();
                     this.enterSector(this.sectorIndex);
@@ -1031,6 +1032,7 @@ const Game = {
             line: WIN_LINE,
             tease: "New Game+ keeps this color in the saber prism.",
             loud: true,
+            trophy: true,
             celebrate: {
                 hero: hero ? hero.name : "Hero",
                 heroId: this.heroId,
@@ -1264,6 +1266,7 @@ const Game = {
                 kicker: lane.kicker,
                 title: lane.winTitle,
                 loud: true,
+                trophy: true,
                 body: lane.winBody,
                 buttons: [{ label: "Continue", onClick: () => this.finishChase(c) }],
             });
@@ -1272,6 +1275,7 @@ const Game = {
         this.openCard({
             title: "Lane breach",
             quick: true,
+            fail: true,
             body: lane.loseBody + " Press Space to retry.",
             buttons: [
                 { label: "Retry the lane", onClick: () => this.startChase(lane.id) },

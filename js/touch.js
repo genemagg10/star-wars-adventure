@@ -6,6 +6,7 @@ const TouchControls = {
     holding: { attack: false, power: false, interact: false, special: false },
     edges: { attack: false, power: false, interact: false, special: false },
     chipSig: "",
+    powerFaceSig: "",
     faces: {},
     powerTimer: 0,
     powerLong: false,
@@ -159,7 +160,6 @@ const TouchControls = {
     buildChips() {
         const box = document.getElementById("power-chips");
         if (!box) return;
-        const short = { push: "◎", throw: "↻", lightning: "↯", rock: "●" };
         for (let i = 0; i < POWER_SLOTS.length; i++) {
             const id = POWER_SLOTS[i];
             const btn = document.createElement("button");
@@ -167,9 +167,8 @@ const TouchControls = {
             btn.className = "power-chip force-slot";
             btn.dataset.power = id;
             btn.dataset.digit = POWERS[id].code;
-            btn.innerHTML = "<b></b><span></span>";
+            btn.innerHTML = "<b></b><canvas width=\"32\" height=\"32\" aria-hidden=\"true\"></canvas>";
             btn.querySelector("b").textContent = POWERS[id].slot;
-            btn.querySelector("span").textContent = short[id];
             btn.setAttribute("aria-label", POWERS[id].slot + " " + POWERS[id].name);
             btn.addEventListener("pointerdown", (e) => {
                 e.preventDefault();
@@ -217,7 +216,6 @@ const TouchControls = {
         document.body.classList.toggle("hud-lock", !live);
         if (!game) return;
 
-        const glyphs = { push: "◎", throw: "↻", lightning: "↯", rock: "●" };
         const act = game.interactContext ? game.interactContext() : null;
         const interact = document.getElementById("btn-interact");
         if (interact) {
@@ -228,7 +226,7 @@ const TouchControls = {
         if (game.mode === "chase") {
             this.setFace("btn-attack", "▲", "Fire", false);
             const canPush = game.owns("push");
-            this.setFace("btn-power", canPush ? "◎" : "◇", canPush ? "Force Push" : "No power yet", !canPush);
+            this.paintPowerFace(canPush ? "push" : "", !!canPush, canPush ? "Force Push" : "No power yet", !canPush);
             if (specialBtn) specialBtn.hidden = true;
         } else {
             if (specialBtn) specialBtn.hidden = false;
@@ -239,7 +237,7 @@ const TouchControls = {
             this.setFace("btn-special", hero ? hero.glyph : "✦", cooling ? name + ", cooling" : name, cooling);
             const id = game.activePower;
             const owned = id && game.owns(id);
-            this.setFace("btn-power", owned ? glyphs[id] : "◇", owned ? POWERS[id].name : "No power yet", !owned);
+            this.paintPowerFace(owned ? id : "", !!owned, owned ? POWERS[id].name : "No power yet", !owned);
             this.setFace("btn-interact", act ? act.icon : "·", act ? act.short : "Nothing nearby", !act);
             if (interact) interact.classList.toggle("is-lesson", !!(act && act.short === "Learn Force Push"));
         }
@@ -249,6 +247,14 @@ const TouchControls = {
         const chips = box.querySelectorAll(".power-chip");
         const showStrip = game.mode === "play";
         box.dataset.empty = showStrip ? "0" : "1";
+        let sig = showStrip ? "1" : "0";
+        for (let i = 0; i < chips.length; i++) {
+            const id = chips[i].dataset.power;
+            sig += game.owns(id) ? "1" : "0";
+            if (game.activePower === id) sig += "*";
+        }
+        const paint = sig !== this.chipSig;
+        if (paint) this.chipSig = sig;
         for (let i = 0; i < chips.length; i++) {
             const chip = chips[i];
             const id = chip.dataset.power;
@@ -258,7 +264,44 @@ const TouchControls = {
             chip.classList.toggle("is-on", showStrip && owned && game.activePower === id);
             const state = owned ? "unlocked" : "locked";
             chip.setAttribute("aria-label", POWERS[id].slot + " " + POWERS[id].name + ", " + state);
+            if (!paint) continue;
+            const canvas = chip.querySelector("canvas");
+            const sprite = Sprites.cache["chip-" + id];
+            if (!canvas || !sprite) continue;
+            const g = canvas.getContext("2d");
+            g.imageSmoothingEnabled = false;
+            g.clearRect(0, 0, canvas.width, canvas.height);
+            g.drawImage(sprite, 0, 0);
         }
+    },
+
+    paintPowerFace(id, owned, label, idle) {
+        const el = document.getElementById("btn-power");
+        if (!el) return;
+        const sig = (owned ? id : "") + "|" + label + "|" + (idle ? "0" : "1");
+        if (this.powerFaceSig === sig) {
+            el.classList.toggle("is-idle", !!idle);
+            el.classList.toggle("is-ready", !idle);
+            return;
+        }
+        this.powerFaceSig = sig;
+        el.setAttribute("aria-label", label);
+        el.classList.toggle("is-idle", !!idle);
+        el.classList.toggle("is-ready", !idle);
+        if (!owned || !Sprites.cache["chip-" + id]) {
+            el.textContent = "◇";
+            return;
+        }
+        el.textContent = "";
+        const canvas = document.createElement("canvas");
+        canvas.width = 32;
+        canvas.height = 32;
+        canvas.className = "power-face";
+        canvas.setAttribute("aria-hidden", "true");
+        const g = canvas.getContext("2d");
+        g.imageSmoothingEnabled = false;
+        g.drawImage(Sprites.cache["chip-" + id], 0, 0);
+        el.appendChild(canvas);
     },
 
     // iOS Safari ignores user-scalable=no and still double-tap zooms a button
