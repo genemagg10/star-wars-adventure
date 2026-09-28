@@ -295,6 +295,7 @@ const World = {
             }
         }
         if (sector.id === "hangar") this.drawParkedSnub(ctx, camera);
+        if (sector.id === "trash") this.drawJunk(ctx, camera, game);
         const accent = sector.accent || PALETTE.blue;
         ctx.save();
         ctx.fillStyle = accent;
@@ -305,6 +306,67 @@ const World = {
         ctx.lineWidth = 4;
         ctx.strokeRect(3, 3, CANVAS_W - 6, CANVAS_H - 6);
         ctx.restore();
+        this.drawLessonBeacon(ctx, camera, game);
+    },
+
+    drawLessonBeacon(ctx, camera, game) {
+        const sector = game && game.sector;
+        if (!sector || sector.id !== "dock" || !sector.lesson || game.owns("push")) return;
+        const x = sector.lesson.x - camera.x;
+        const y = sector.lesson.y - camera.y;
+        const pulse = 0.5 + 0.5 * Math.sin(game.time * 5);
+        ctx.save();
+        ctx.globalCompositeOperation = "lighter";
+        ctx.strokeStyle = PALETTE.blue;
+        ctx.globalAlpha = 0.35 + pulse * 0.45;
+        ctx.lineWidth = 6;
+        ctx.beginPath();
+        ctx.arc(x, y, 22 + pulse * 26, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.strokeStyle = PALETTE.gold;
+        ctx.globalAlpha = 0.55 + pulse * 0.4;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(x, y, 12 + pulse * 8, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.globalAlpha = 0.85;
+        ctx.fillStyle = PALETTE.blue;
+        ctx.fillRect(x - 3, y - 46 - pulse * 6, 6, 28);
+        ctx.restore();
+        ctx.save();
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = PALETTE.ink;
+        ctx.fillRect(x - 78, y - 62, 156, 18);
+        ctx.fillStyle = PALETTE.gold;
+        ctx.font = "14px ui-monospace, monospace";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("Learn Force Push", x, y - 53);
+        ctx.restore();
+    },
+
+    drawJunk(ctx, camera, game) {
+        const bits = [
+            { x: 18, y: 16, key: "junk", ph: 0 },
+            { x: 24, y: 19, key: "junk-b", ph: 1.1 },
+            { x: 33, y: 15, key: "junk", ph: 2.2 },
+            { x: 40, y: 18, key: "junk-b", ph: 0.4 },
+            { x: 27, y: 21, key: "junk", ph: 1.7 },
+            { x: 36, y: 23, key: "junk-b", ph: 2.6 },
+            { x: 46, y: 20, key: "junk", ph: 0.8 },
+        ];
+        for (let i = 0; i < bits.length; i++) {
+            const bit = bits[i];
+            const bob = Math.sin(game.time * 2.1 + bit.ph) * 5;
+            const drift = Math.sin(game.time * 0.7 + bit.ph) * 3;
+            Sprites.draw(
+                ctx,
+                bit.key,
+                bit.x * TILE + TILE / 2 - camera.x + drift,
+                bit.y * TILE + TILE / 2 - camera.y + bob,
+                false
+            );
+        }
     },
 
     drawParkedSnub(ctx, camera) {

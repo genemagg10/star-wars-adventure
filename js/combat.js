@@ -74,30 +74,32 @@ const Combat = {
     melee(game) {
         const p = game.player;
         const hero = HEROES[p.heroId];
-        if (p.attackCd > 0 || p.hp <= 0) return;
+        if (!hero || p.attackCd > 0 || p.hp <= 0) return;
         p.attackCd = hero.cooldown;
-        p.swing = 0.14;
-        if (hero.melee !== "bowcaster") p.ignite = 0.09;
-        if (hero.melee === "bowcaster") {
-            const dir = p.facing;
-            game.shots.push({
-                kind: "bow",
-                team: "player",
-                x: p.x + dir.x * 16,
-                y: p.y + dir.y * 16,
-                vx: dir.x * 260,
-                vy: dir.y * 260,
-                r: 5,
-                dmg: hero.damage,
-                life: 0.8,
-                color: PALETTE.gold,
-                hit: {},
-            });
-            SoundSystem.shot();
-            return;
-        }
-        if (hero.melee === "spin") SoundSystem.spin();
-        else SoundSystem.swing();
+        p.swing = 0.26;
+        p.ignite = 0.09;
+        const face = p.facing.x || p.facing.y ? p.facing : { x: 0, y: 1 };
+        p.swingFacing = { x: face.x, y: face.y };
+        p.facing = p.swingFacing;
+        SoundSystem.swing();
+        this.arcHit(game, p, hero.range, hero.damage, 0.2, 110);
+    },
+
+    special(game) {
+        const p = game.player;
+        const hero = HEROES[p.heroId];
+        if (!hero || p.specialCd > 0 || p.hp <= 0) return;
+        p.specialCd = hero.specialCooldown;
+        p.specialKind = hero.special;
+        const face = p.facing.x || p.facing.y ? p.facing : { x: 0, y: 1 };
+        p.swingFacing = { x: face.x, y: face.y };
+        p.facing = p.swingFacing;
+        if (hero.special === "hope") this.hopeStrike(game, p, hero);
+        else if (hero.special === "spin") this.staffSpin(game, p, hero);
+        else this.bowcasterBlast(game, p, hero);
+    },
+
+    arcHit(game, p, range, dmg, dotNeed, kick) {
         let connected = false;
         for (let i = 0; i < game.enemies.length; i++) {
             const e = game.enemies[i];
@@ -105,37 +107,110 @@ const Combat = {
             const dx = e.x - p.x;
             const dy = e.y - p.y;
             const d = Math.hypot(dx, dy) || 1;
-            let landed = false;
-            if (hero.melee === "spin") {
-                landed = d < hero.range + e.r + 4;
-            } else if (d < hero.range + e.r * 0.5 + 6) {
-                const dot = (dx / d) * p.facing.x + (dy / d) * p.facing.y;
-                landed = dot > 0.22;
-            }
-            if (!landed) continue;
-            this.hurtEnemy(game, e, hero.damage);
+            if (d >= range + e.r * 0.5 + 6) continue;
+            const dot = (dx / d) * p.facing.x + (dy / d) * p.facing.y;
+            if (dot <= dotNeed) continue;
+            this.hurtEnemy(game, e, dmg);
             const away = normalize(dx, dy);
-            e.kx += away.x * 120;
-            e.ky += away.y * 120;
+            e.kx += away.x * kick;
+            e.ky += away.y * kick;
             connected = true;
         }
-        if (hero.melee === "hope") {
-            const nx = p.x + p.facing.x * 14;
-            const ny = p.y + p.facing.y * 14;
-            if (!game.circleBlocked(nx, ny, p.r)) {
-                p.x = nx;
-                p.y = ny;
-            }
-            if (connected && p.hopeCd <= 0 && p.hp < p.maxHp) {
-                p.hp += 1;
-                p.hopeCd = 2.4;
-                this.addDamageNumber(game, p.x, p.y, 1, true);
-                this.burst(game, p.x, p.y, PALETTE.green);
-            }
+        return connected;
+    },
+
+    hopeStrike(game, p, hero) {
+        p.specialT = 0.48;
+        SoundSystem.hope();
+        const nx = p.x + p.facing.x * 22;
+        const ny = p.y + p.facing.y * 22;
+        if (!game.circleBlocked(nx, ny, p.r)) {
+            p.x = nx;
+            p.y = ny;
+        }
+        const connected = this.arcHit(game, p, hero.specialRange, hero.specialDamage, 0.05, 180);
+        const tipX = p.x + p.facing.x * 36;
+        const tipY = p.y + p.facing.y * 36;
+        game.fx.push({ kind: "ring", x: tipX, y: tipY, r: 8, life: 0.36, color: saberById(game.saber).color, grow: 200 });
+        game.fx.push({ kind: "ring", x: tipX, y: tipY, r: 4, life: 0.28, color: PALETTE.foam, grow: 140 });
+        game.flash = 0.08;
+        if (connected && p.hp < p.maxHp) {
+            p.hp += 1;
+            this.addDamageNumber(game, p.x, p.y, 1, true);
+            this.burst(game, p.x, p.y, PALETTE.green);
+            game.fx.push({ kind: "ring", x: p.x, y: p.y, r: 6, life: 0.4, color: PALETTE.green, grow: 160 });
+        } else if (connected) {
+            this.burst(game, tipX, tipY, PALETTE.green);
         }
     },
 
-    usePower(game) {
+    staffSpin(game, p, hero) {
+        p.specialT = 0.5;
+        SoundSystem.spin();
+        SoundSystem.hum();
+        const range = hero.specialRange;
+        for (let i = 0; i < game.enemies.length; i++) {
+            const e = game.enemies[i];
+            if (!e.alive) continue;
+            const d = dist(p.x, p.y, e.x, e.y);
+            if (d >= range + e.r) continue;
+            this.hurtEnemy(game, e, hero.specialDamage);
+            const away = normalize(e.x - p.x, e.y - p.y);
+            e.kx += away.x * 200;
+            e.ky += away.y * 200;
+        }
+        const color = saberById(game.saber).color;
+        game.fx.push({ kind: "ring", x: p.x, y: p.y, r: 10, life: 0.42, color: color, grow: 210 });
+        game.fx.push({ kind: "ring", x: p.x, y: p.y, r: 6, life: 0.32, color: PALETTE.foam, grow: 160 });
+        game.fx.push({ kind: "ring", x: p.x, y: p.y, r: 14, life: 0.24, color: color, grow: 90 });
+        this.burst(game, p.x, p.y, color);
+    },
+
+    bowcasterBlast(game, p, hero) {
+        p.specialT = 0.36;
+        const dir = p.facing.x || p.facing.y ? p.facing : { x: 1, y: 0 };
+        SoundSystem.shot();
+        SoundSystem.hum();
+        game.shots.push({
+            kind: "bow",
+            team: "player",
+            x: p.x + dir.x * 18,
+            y: p.y + dir.y * 18,
+            vx: dir.x * 340,
+            vy: dir.y * 340,
+            r: 9,
+            dmg: hero.specialDamage,
+            life: 0.95,
+            color: PALETTE.gold,
+            big: true,
+            hit: {},
+        });
+        const mx = p.x + dir.x * 20;
+        const my = p.y + dir.y * 20;
+        game.fx.push({ kind: "ring", x: mx, y: my, r: 6, life: 0.28, color: PALETTE.gold, grow: 180 });
+        game.fx.push({ kind: "ring", x: mx, y: my, r: 3, life: 0.2, color: PALETTE.foam, grow: 120 });
+        this.burst(game, mx, my, PALETTE.gold);
+        game.shake = 0.08;
+    },
+
+    confetti(game, x, y) {
+        const colors = [PALETTE.gold, PALETTE.foam, PALETTE.blue, PALETTE.green];
+        for (let i = 0; i < 26; i++) {
+            game.fx.push({
+                kind: "confetti",
+                x: x + (Math.random() - 0.5) * 48,
+                y: y,
+                vx: (Math.random() - 0.5) * 90,
+                vy: -30 - Math.random() * 90,
+                life: 0.85 + Math.random() * 0.45,
+                color: colors[i % colors.length],
+                w: 2 + (i % 3),
+                h: 3 + (i % 2),
+            });
+        }
+    },
+
+    usePower(game, opts) {
         const id = game.activePower;
         if (!id || game.powers.indexOf(id) < 0) {
             game.toast("No power yet");
@@ -144,7 +219,11 @@ const Combat = {
         const p = game.player;
         if (p.powerCd > 0 || p.hp <= 0) return;
         p.powerCd = POWER_COOLDOWN;
-        this.cast(game, p, id, { weak: false, team: "player" });
+        this.cast(game, p, id, {
+            weak: false,
+            team: "player",
+            aimAssist: !!(opts && opts.aimAssist),
+        });
         game.lastPower = id;
         game.notePowerUsed(id);
     },
@@ -155,7 +234,7 @@ const Combat = {
         else if (opts.weak) dmg = Math.max(1, Math.round(dmg * 0.5));
         const team = opts.team || "player";
         if (id === "push") this.push(game, source, dmg, team, !!opts.weak);
-        else if (id === "throw") this.saberThrow(game, source, dmg, team, !!opts.weak);
+        else if (id === "throw") this.saberThrow(game, source, dmg, team, !!opts.weak, !!opts.aimAssist);
         else if (id === "lightning") this.lightning(game, source, dmg, team, !!opts.weak);
         else if (id === "rock") this.rock(game, source, dmg, team, !!opts.weak);
         SoundSystem.force(id, !!opts.weak || team === "foe");
@@ -191,8 +270,16 @@ const Combat = {
         game.fx.push({ kind: "ring", x: px, y: py, r: 6, life: 0.22, color: PALETTE.foam, grow: 110 });
     },
 
-    saberThrow(game, source, dmg, team, weak) {
-        const dir = source.facing || { x: 1, y: 0 };
+    saberThrow(game, source, dmg, team, weak, aimAssist) {
+        let dir = source.facing || { x: 1, y: 0 };
+        if (aimAssist && team !== "foe") {
+            const foe = nearestFoe(game, source, 200);
+            if (foe) {
+                dir = normalize(foe.x - source.x, foe.y - source.y);
+                source.facing = dir;
+                game.fx.push({ kind: "ring", x: foe.x, y: foe.y, r: 6, life: 0.2, color: PALETTE.gold, grow: 70 });
+            }
+        }
         const color = team === "foe" ? PALETTE.purple : saberById(game.saber).color;
         const speed = weak ? 200 : 280;
         game.shots.push({
@@ -325,7 +412,29 @@ const Combat = {
                 game.fx.push({ kind: "spark", x: s.x, y: s.y, vx: 0, vy: 0, life: 0.08, maxLife: 0.08, color: s.color });
             }
             if (s.kind === "bow") {
-                game.fx.push({ kind: "spark", x: s.x, y: s.y, vx: (Math.random() - 0.5) * 12, vy: (Math.random() - 0.5) * 12, life: 0.1, maxLife: 0.1, color: PALETTE.gold });
+                const spray = s.big ? 28 : 12;
+                game.fx.push({
+                    kind: "spark",
+                    x: s.x,
+                    y: s.y,
+                    vx: (Math.random() - 0.5) * spray,
+                    vy: (Math.random() - 0.5) * spray,
+                    life: s.big ? 0.16 : 0.1,
+                    maxLife: s.big ? 0.16 : 0.1,
+                    color: PALETTE.gold,
+                });
+                if (s.big) {
+                    game.fx.push({
+                        kind: "spark",
+                        x: s.x,
+                        y: s.y,
+                        vx: -s.vx * 0.04,
+                        vy: -s.vy * 0.04,
+                        life: 0.12,
+                        maxLife: 0.12,
+                        color: PALETTE.foam,
+                    });
+                }
             }
             if (s.kind === "rock") {
                 s.hop += dt;
@@ -395,10 +504,11 @@ const Combat = {
             const f = game.fx[i];
             if (f.kind === "spark" && f.maxLife == null) f.maxLife = f.life;
             f.life -= dt;
-            if (f.kind === "spark") {
+            if (f.kind === "spark" || f.kind === "confetti") {
                 f.x += f.vx * dt;
                 f.y += f.vy * dt;
             }
+            if (f.kind === "confetti") f.vy += dt * 140;
             if (f.kind === "ring") f.r += dt * (f.grow || 70);
         }
         game.fx = game.fx.filter((f) => f.life > 0);
@@ -428,6 +538,22 @@ function jaggedLine(x1, y1, x2, y2) {
     }
     pts.push({ x: x2, y: y2 });
     return pts;
+}
+
+function nearestFoe(game, source, maxDist) {
+    let best = null;
+    let bestD = maxDist;
+    const list = game.enemies || [];
+    for (let i = 0; i < list.length; i++) {
+        const e = list[i];
+        if (!e.alive) continue;
+        const d = dist(source.x, source.y, e.x, e.y);
+        if (d < bestD) {
+            best = e;
+            bestD = d;
+        }
+    }
+    return best;
 }
 
 function beamHits(source, target, dir, range, width) {

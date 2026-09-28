@@ -3,13 +3,14 @@
 
 const TouchControls = {
     vec: { x: 0, y: 0 },
-    holding: { attack: false, power: false, interact: false },
-    edges: { attack: false, power: false, interact: false },
+    holding: { attack: false, power: false, interact: false, special: false },
+    edges: { attack: false, power: false, interact: false, special: false },
     chipSig: "",
     faces: {},
     powerTimer: 0,
     powerLong: false,
     powerPointer: null,
+    flick: null,
 
     init() {
         const stick = document.getElementById("stick");
@@ -17,6 +18,7 @@ const TouchControls = {
         if (!stick || !nub) return;
         const max = 46;
         let active = null;
+        let stickAt = 0;
 
         const place = (clientX, clientY) => {
             const rect = stick.getBoundingClientRect();
@@ -35,6 +37,15 @@ const TouchControls = {
 
         const endStick = (e) => {
             if (e.pointerId !== active) return;
+            const mag = Math.hypot(this.vec.x, this.vec.y);
+            const held = performance.now() - stickAt;
+            if (mag > 0.18) {
+                this.flick = {
+                    x: this.vec.x / mag,
+                    y: this.vec.y / mag,
+                    left: held < 280 ? 42 : 16,
+                };
+            }
             active = null;
             this.vec.x = 0;
             this.vec.y = 0;
@@ -43,6 +54,8 @@ const TouchControls = {
 
         stick.addEventListener("pointerdown", (e) => {
             active = e.pointerId;
+            stickAt = performance.now();
+            this.flick = null;
             stick.setPointerCapture(e.pointerId);
             place(e.clientX, e.clientY);
             SoundSystem.unlock();
@@ -73,6 +86,7 @@ const TouchControls = {
             btn.addEventListener("pointercancel", up);
         };
         bind("btn-attack", "attack");
+        bind("btn-special", "special");
         bind("btn-interact", "interact");
         this.bindPower();
 
@@ -205,17 +219,28 @@ const TouchControls = {
         const glyphs = { push: "◎", throw: "↻", lightning: "↯", rock: "●" };
         const act = game.interactContext ? game.interactContext() : null;
         const interact = document.getElementById("btn-interact");
-        if (interact) interact.hidden = game.mode !== "play";
+        if (interact) {
+            interact.hidden = game.mode !== "play";
+            if (game.mode !== "play") interact.classList.remove("is-lesson");
+        }
+        const specialBtn = document.getElementById("btn-special");
         if (game.mode === "chase") {
             this.setFace("btn-attack", "▲", "Fire", false);
             const canPush = game.owns("push");
             this.setFace("btn-power", canPush ? "◎" : "◇", canPush ? "Force Push" : "No power yet", !canPush);
+            if (specialBtn) specialBtn.hidden = true;
         } else {
+            if (specialBtn) specialBtn.hidden = false;
             this.setFace("btn-attack", "╱", "Lightsaber", false);
+            const hero = game.player && HEROES[game.player.heroId];
+            const cooling = !!(game.player && game.player.specialCd > 0);
+            const name = hero ? hero.specialName : "Special";
+            this.setFace("btn-special", hero ? hero.glyph : "✦", cooling ? name + ", cooling" : name, cooling);
             const id = game.activePower;
             const owned = id && game.owns(id);
             this.setFace("btn-power", owned ? glyphs[id] : "◇", owned ? POWERS[id].name : "No power yet", !owned);
             this.setFace("btn-interact", act ? act.icon : "·", act ? act.short : "Nothing nearby", !act);
+            if (interact) interact.classList.toggle("is-lesson", !!(act && act.short === "Learn Force Push"));
         }
 
         const box = document.getElementById("power-chips");
@@ -240,10 +265,12 @@ const TouchControls = {
             attack: this.edges.attack,
             power: this.edges.power,
             interact: this.edges.interact,
+            special: this.edges.special,
         };
         this.edges.attack = false;
         this.edges.power = false;
         this.edges.interact = false;
+        this.edges.special = false;
         return out;
     },
 };

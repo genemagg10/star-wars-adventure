@@ -28,6 +28,8 @@ const PALETTE = {
     cloak: "#2A1840",
     metal: "#8FA4C4",
     skin: "#F3D2B0",
+    // Rose chrome for enemy blades only. Never a player saber, never a danger telegraph.
+    foeBlade: "#D46A78",
 };
 
 function canvasWidthForAspect(aspect) {
@@ -48,33 +50,48 @@ const SABERS = [
 const HEROES = {
     lucan: {
         name: "Luke Skywalker",
-        blurb: "Longer reach. Hope Strike mends a heart when it lands.",
+        blurb: "Longer reach. Space swings. F is Hope Strike, and a hit mends a heart.",
         maxHp: 6,
         speed: 156,
-        melee: "hope",
-        range: 54,
+        special: "hope",
+        specialName: "Hope Strike",
+        glyph: "✦",
+        range: 52,
+        specialRange: 74,
         damage: 2,
-        cooldown: 0.36,
+        specialDamage: 3,
+        cooldown: 0.34,
+        specialCooldown: 3.2,
     },
     rae: {
         name: "Rey",
-        blurb: "Quicker steps. Staff Spin hits every foe around you.",
+        blurb: "Quicker steps. Space swings. F is Staff Spin.",
         maxHp: 6,
         speed: 196,
-        melee: "spin",
-        range: 38,
+        special: "spin",
+        specialName: "Staff Spin",
+        glyph: "✳",
+        range: 40,
+        specialRange: 68,
         damage: 2,
-        cooldown: 0.3,
+        specialDamage: 2,
+        cooldown: 0.28,
+        specialCooldown: 2.7,
     },
     chewoo: {
         name: "Chewbacca",
-        blurb: "More hearts. Bowcaster Blast reaches across the deck.",
+        blurb: "More hearts. Space swings. F is Bowcaster Blast.",
         maxHp: 8,
         speed: 136,
-        melee: "bowcaster",
-        range: 220,
-        damage: 4,
-        cooldown: 0.52,
+        special: "bowcaster",
+        specialName: "Bowcaster Blast",
+        glyph: "≫",
+        range: 42,
+        specialRange: 240,
+        damage: 2,
+        specialDamage: 4,
+        cooldown: 0.4,
+        specialCooldown: 3.4,
     },
 };
 
@@ -108,9 +125,9 @@ const GUARD_STATS = {
 };
 
 const BOSS_STATS = {
-    chrome: { name: "Captain Phasma", hp: 16, speed: 48, gap: 1.75 },
+    chrome: { name: "Captain Phasma", hp: 12, speed: 44, gap: 2.15 },
     shadow: { name: "Inquisitor", hp: 30, speed: 78, gap: 1.2 },
-    dark: { name: "Darth Vader", hp: 36, speed: 54, gap: 1.25 },
-    fallen: { name: "Kylo Ren", hp: 28, speed: 88, gap: 0.95 },
+    dark: { name: "Darth Vader", hp: 36, speed: 48, gap: 1.7 },
+    fallen: { name: "Kylo Ren", hp: 28, speed: 60, gap: 1.5 },
     hooded: { name: "Emperor", hp: 42, speed: 64, gap: 1.05 },
 };

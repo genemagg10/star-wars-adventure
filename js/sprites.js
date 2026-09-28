@@ -377,6 +377,8 @@ const ART = {
         "................",
     ]),
     "chewoo-down": art(16, [
+        "cc............cc",
+        ".c............c.",
         ".cc..........cc.",
         ".cccccccccccccc.",
         "ccmmccccccccmmcc",
@@ -395,6 +397,8 @@ const ART = {
         "................",
     ]),
     "chewoo-up": art(16, [
+        "cc............cc",
+        ".c............c.",
         ".cc..........cc.",
         ".cccccccccccccc.",
         "cccccccccccccccc",
@@ -413,6 +417,8 @@ const ART = {
         "................",
     ]),
     "chewoo-side": art(16, [
+        "....cc..........",
+        "...c............",
         "................",
         "...cccccccccc...",
         "..cccmmcccccc...",
@@ -592,6 +598,26 @@ const ART = {
         "............",
         "............",
     ]),
+    junk: art(8, [
+        "..yyyy..",
+        ".yppppy.",
+        ".pnnnnp.",
+        ".pnffnp.",
+        ".pnnnnp.",
+        ".yppppy.",
+        "..dddd..",
+        "........",
+    ]),
+    "junk-b": art(8, [
+        "...oo...",
+        "..oppo..",
+        ".opnnpo.",
+        ".pnnnnp.",
+        "..pnnnp.",
+        "...pp...",
+        "....d...",
+        "........",
+    ]),
     debris: art(8, [
         "..dddd..",
         ".ddnnnd.",
@@ -620,6 +646,8 @@ const SPRITE_SCALE = {
     bot: 2,
     "ship-twin": 2,
     "ship-snub": 2,
+    junk: 2,
+    "junk-b": 2,
     debris: 2,
 };
 
@@ -685,25 +713,70 @@ const Sprites = {
         ctx.restore();
     },
 
-    drawSwing(ctx, x, y, facing, range, color, swing) {
+    drawSwing(ctx, x, y, facing, range, color, swing, dur) {
         const ang = Math.atan2(facing.y, facing.x);
-        const along = 1 - Math.max(0, Math.min(1, swing / 0.14));
-        const span = 1.15;
-        const a0 = ang - span * 0.55 + along * span * 0.45;
+        const spanTime = dur || 0.22;
+        const along = 1 - Math.max(0, Math.min(1, swing / spanTime));
+        const span = 1.7;
+        const a0 = ang - span * 0.62 + along * span;
+        const a1 = a0 + span * 0.55;
+        const radius = Math.max(18, range * 0.86);
         ctx.save();
         ctx.lineCap = "round";
         ctx.strokeStyle = color;
-        ctx.globalAlpha = 0.35;
-        ctx.lineWidth = 8;
+        ctx.globalAlpha = 0.28;
+        ctx.lineWidth = 14;
         ctx.beginPath();
-        ctx.arc(x, y, range * 0.72, a0, a0 + span * 0.7);
+        ctx.arc(x, y, radius, a0, a1);
         ctx.stroke();
-        ctx.globalAlpha = 1;
-        ctx.lineWidth = 3;
+        ctx.globalAlpha = 0.95;
+        ctx.lineWidth = 5;
         ctx.stroke();
         ctx.strokeStyle = PALETTE.foam;
-        ctx.lineWidth = 1;
+        ctx.lineWidth = 2;
         ctx.stroke();
+        const tip = a0 + (a1 - a0) * 0.85;
+        const tx = x + Math.cos(tip) * radius;
+        const ty = y + Math.sin(tip) * radius;
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = PALETTE.foam;
+        ctx.beginPath();
+        ctx.arc(tx, ty, 5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(tx, ty, 3, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    },
+
+    drawAim(ctx, x, y, facing, color, strong) {
+        const fx = facing && facing.x ? facing.x : 0;
+        const fy = facing && facing.y ? facing.y : 0;
+        const ang = fx || fy ? Math.atan2(fy, fx) : Math.PI / 2;
+        const dist = strong ? 36 : 26;
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(ang);
+        ctx.strokeStyle = PALETTE.foam;
+        ctx.globalAlpha = strong ? 1 : 0.85;
+        ctx.lineWidth = strong ? 3 : 2;
+        ctx.beginPath();
+        ctx.moveTo(12, 0);
+        ctx.lineTo(dist - 4, 0);
+        ctx.stroke();
+        ctx.translate(dist, 0);
+        ctx.fillStyle = color;
+        ctx.globalAlpha = 1;
+        ctx.beginPath();
+        ctx.moveTo(10, 0);
+        ctx.lineTo(-8, 7);
+        ctx.lineTo(-4, 0);
+        ctx.lineTo(-8, -7);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = PALETTE.foam;
+        ctx.fillRect(-2, -1, 7, 2);
         ctx.restore();
     },
 };

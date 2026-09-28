@@ -20,7 +20,7 @@ const CHASE_LANES = {
         foeHp: 2,
         shotGap: 1.2,
         winTitle: "Hangar clear",
-        winBody: "The X-wing breaks through the TIE fighters.",
+        winBody: "You made it! The X-wing breaks through the TIE fighters.",
         loseBody: "The TIE fighters caught the X-wing.",
     },
     bay: {
@@ -72,6 +72,13 @@ const MOVE_CODES = {
     ArrowUp: 1, ArrowDown: 1, ArrowLeft: 1, ArrowRight: 1,
 };
 
+const MOVE_AXIS = {
+    KeyW: { x: 0, y: -1 }, ArrowUp: { x: 0, y: -1 },
+    KeyS: { x: 0, y: 1 }, ArrowDown: { x: 0, y: 1 },
+    KeyA: { x: -1, y: 0 }, ArrowLeft: { x: -1, y: 0 },
+    KeyD: { x: 1, y: 0 }, ArrowRight: { x: 1, y: 0 },
+};
+
 const Game = {
     mode: "menu",
     time: 0,
@@ -80,7 +87,8 @@ const Game = {
     paused: false,
     down: {},
     pressed: {},
-    moveSticky: {},
+    moveAt: {},
+    tapNudge: null,
     camera: { x: 0, y: 0 },
     shake: 0,
     flash: 0,
@@ -162,9 +170,14 @@ const Game = {
             if (e.repeat) return;
             this.down[e.code] = true;
             this.pressed[e.code] = true;
-            if (MOVE_CODES[e.code]) this.moveSticky[e.code] = 0.16;
-            if (UI.cardOpen && (e.code === "Enter" || e.code === "KeyE")) {
+            if (MOVE_CODES[e.code]) {
+                this.moveAt[e.code] = this.time;
+                this.tapNudge = null;
+            }
+            const retryKey = UI.quickRetry && (e.code === "Space" || e.code === "KeyF");
+            if (UI.cardOpen && (e.code === "Enter" || e.code === "KeyE" || retryKey)) {
                 this.pressed[e.code] = false;
+                this.down[e.code] = false;
                 UI.activatePrimary();
                 return;
             }
@@ -172,6 +185,11 @@ const Game = {
         });
         window.addEventListener("keyup", (e) => {
             this.down[e.code] = false;
+            if (!MOVE_CODES[e.code]) return;
+            const started = this.moveAt[e.code];
+            const held = started == null ? 1 : this.time - started;
+            delete this.moveAt[e.code];
+            if (held < 0.24) this.addTapNudge(MOVE_AXIS[e.code]);
         });
         window.addEventListener("pointerdown", () => SoundSystem.unlock());
     },
@@ -190,15 +208,14 @@ const Game = {
         this.time += dt;
         this.shake = Math.max(0, this.shake - dt);
         this.flash = Math.max(0, this.flash - dt);
+        this.decayNudge(dt);
         if (this.hitStop > 0) {
             this.hitStop -= dt;
-            this.readInput();
             TouchControls.sync(this);
             this.draw();
             requestAnimationFrame((t) => this.loop(t));
             return;
         }
-        this.decaySticky(dt);
         const input = this.readInput();
         if (this.mode === "play") this.updatePlay(dt, input);
         else if (this.mode === "chase") this.updateChase(dt, input);
@@ -224,39 +241,64 @@ const Game = {
                 }
             }
         }
-        const step = (code) => this.down[code] || (this.moveSticky[code] > 0);
+        const step = (code) => !!this.down[code];
         let x = 0;
         let y = 0;
         if (step("KeyA") || step("ArrowLeft")) x -= 1;
         if (step("KeyD") || step("ArrowRight")) x += 1;
         if (step("KeyW") || step("ArrowUp")) y -= 1;
         if (step("KeyS") || step("ArrowDown")) y += 1;
+        const stickMag = Math.hypot(TouchControls.vec.x, TouchControls.vec.y);
         let move = { x: 0, y: 0 };
-        if (x || y) move = normalize(x, y);
-        else if (Math.hypot(TouchControls.vec.x, TouchControls.vec.y) > 0.12) {
+        if (x || y) {
+            move = normalize(x, y);
+            this.tapNudge = null;
+            TouchControls.flick = null;
+        } else if (this.tapNudge && (this.tapNudge.x || this.tapNudge.y) && this.tapNudge.left > 0) {
+            move = normalize(this.tapNudge.x, this.tapNudge.y);
+        } else if (stickMag > 0.12) {
             move = { x: TouchControls.vec.x, y: TouchControls.vec.y };
+            TouchControls.flick = null;
+        } else if (TouchControls.flick && TouchControls.flick.left > 0) {
+            move = { x: TouchControls.flick.x, y: TouchControls.flick.y };
         }
         return {
             move: move,
-            attack: !!this.down.Space || TouchControls.holding.attack,
+            attack: !!this.down.Space || !!pressed.Space || TouchControls.holding.attack || edges.attack,
+            special: !!this.down.KeyF || !!pressed.KeyF || !!this.down.ShiftLeft || !!pressed.ShiftLeft || !!this.down.ShiftRight || !!pressed.ShiftRight || TouchControls.holding.special || edges.special,
             power: !!pressed.KeyQ || edges.power,
+            powerTouch: !!edges.power && !pressed.KeyQ,
             interact: !!pressed.KeyE || edges.interact,
         };
     },
 
-    decaySticky(dt) {
-        const keys = Object.keys(this.moveSticky);
-        for (let i = 0; i < keys.length; i++) {
-            const k = keys[i];
-            if (this.moveSticky[k] > 0) this.moveSticky[k] = Math.max(0, this.moveSticky[k] - dt);
+    addTapNudge(axis) {
+        if (!axis) return;
+        if (!this.tapNudge) this.tapNudge = { x: 0, y: 0, left: 42 };
+        this.tapNudge.x += axis.x;
+        this.tapNudge.y += axis.y;
+        this.tapNudge.left = 42;
+    },
+
+    decayNudge(dt) {
+        const drain = 160 * dt;
+        if (this.tapNudge) {
+            this.tapNudge.left -= drain;
+            if (this.tapNudge.left <= 0) this.tapNudge = null;
+        }
+        if (TouchControls.flick) {
+            TouchControls.flick.left -= drain;
+            if (TouchControls.flick.left <= 0) TouchControls.flick = null;
         }
     },
 
     updatePlay(dt, input) {
         if (this.toastT > 0) this.toastT -= dt;
         if (this.bannerT > 0) this.bannerT -= dt;
+        if (this.player && this.player.hp <= 0 && !UI.cardOpen) this.onPlayerDown();
         if (this.frozen || !this.player) return;
         Entities.updateAll(this, dt, input);
+        this.nudgeLesson(dt);
         if (this.pending && !this.frozen) {
             this.pending.t -= dt;
             if (this.pending.t <= 0) {
@@ -351,7 +393,8 @@ const Game = {
         this.frozen = false;
         UI.hideAll();
         this.enterSector(0);
-        this.toast("Move, swing the lightsaber, interact");
+        const hero = HEROES[heroId];
+        this.toast("Space swings. F is " + (hero ? hero.specialName : "your special") + ".");
         this.toastT = 4.2;
         this.save();
     },
@@ -391,6 +434,9 @@ const Game = {
         this.hazardT = 0.4;
         this.pending = null;
         this.downed = false;
+        this.chase = null;
+        this.tapNudge = null;
+        this.lessonNear = 0;
         this.shots = [];
         this.fx = [];
         this.numbers = [];
@@ -401,8 +447,10 @@ const Game = {
         const bossDown = !!(spec.bossId && this.bossesDown.indexOf(spec.bossId) >= 0);
         const missing = spec.bossId === "hooded" ? this.missingPowers() : [];
         if (!bossDown && missing.length === 0) {
-            for (let i = 0; i < this.sector.guards.length; i++) {
-                const g = this.sector.guards[i];
+            const guardList = this.sector.guards;
+            const guardCap = spec.id === "hangar" ? 1 : guardList.length;
+            for (let i = 0; i < guardList.length && i < guardCap; i++) {
+                const g = guardList[i];
                 this.enemies.push(Entities.makeGuard(g.x, g.y));
             }
             if (this.sector.boss) {
@@ -418,8 +466,13 @@ const Game = {
         this.focusCamera();
         const rewardWaiting = bossDown && spec.bossId && !this.resolved[spec.bossId];
         if (!missing.length && !rewardWaiting) {
-            this.toast(spec.name);
-            this.toastT = 2.1;
+            if (spec.id === "dock" && !this.owns("push")) {
+                this.toast("Blue terminal: learn Force Push");
+                this.toastT = 3.4;
+            } else {
+                this.toast(spec.name);
+                this.toastT = 2.1;
+            }
         }
         if (missing.length) {
             const names = missing.map((id) => POWERS[id].name).join(", ");
@@ -477,6 +530,10 @@ const Game = {
             this.objective = s.clearGoal || "Clear the deck";
             return;
         }
+        if (s.id === "hangar" && s.exit) {
+            this.objective = "You made it!";
+            return;
+        }
         if (s.exit) this.objective = s.exitGoal || "Reach the north lock";
         else this.objective = s.clearGoal || "Hold the deck";
     },
@@ -489,6 +546,7 @@ const Game = {
     exitOpen() {
         const s = this.sector;
         if (!s || !s.exit) return false;
+        if (s.id === "dock" && s.lesson && !this.owns("push")) return false;
         if (this.chestBlocksExit()) return false;
         if (this.enemies.some((e) => e.alive)) return false;
         return true;
@@ -500,6 +558,10 @@ const Game = {
         this.hint = null;
         if (!p || !s) return;
         const near = (pt, r) => pt && dist(p.x, p.y, pt.x, pt.y) < r;
+        if (s.id === "dock" && s.lesson && !this.owns("push")) {
+            this.hint = { x: s.lesson.x, y: s.lesson.y, label: "Learn Force Push" };
+            return;
+        }
         if (near(s.lesson, 44) && !this.owns("push")) this.hint = { x: s.lesson.x, y: s.lesson.y, label: "Force terminal" };
         else if (near(s.chest, 44) && !this.owns("rock")) this.hint = { x: s.chest.x, y: s.chest.y, label: "Salvage chest" };
         else if (near(s.panel, 44) && !this.secretOpen) this.hint = { x: s.panel.x, y: s.panel.y, label: "Side hatch" };
@@ -520,7 +582,7 @@ const Game = {
     interactContext() {
         if (this.mode !== "play" || !this.hint) return null;
         const label = this.hint.label;
-        if (label === "Force terminal") return { icon: "◎", short: "Force terminal" };
+        if (label === "Learn Force Push" || label === "Force terminal") return { icon: "Push", short: "Learn Force Push" };
         if (label === "Salvage chest") return { icon: "▣", short: "Salvage chest" };
         if (label === "Side hatch") return { icon: "▤", short: "Side hatch" };
         if (label === "Sticker") return { icon: "✶", short: "Sticker" };
@@ -534,20 +596,18 @@ const Game = {
         const p = this.player;
         const s = this.sector;
         const near = (pt, r) => pt && dist(p.x, p.y, pt.x, pt.y) < r;
+        if (s.id === "dock" && s.lesson && !this.owns("push")) {
+            if (near(s.exit, 52)) {
+                this.toast("North lock is shut. Walk to the blue terminal.");
+                this.toastT = 3.2;
+                SoundSystem.ui();
+                return;
+            }
+            this.teachPush();
+            return;
+        }
         if (near(s.lesson, 44) && !this.owns("push")) {
-            this.grantPower("push");
-            this.save();
-            SoundSystem.unlock();
-            SoundSystem.learned();
-            this.openCard({
-                kicker: "Docking Ring",
-                title: "Force Push",
-                loud: true,
-                powerDrop: true,
-                body: "The blue terminal teaches Force Push. Press 1, tap gem 1, or hold Power. A short tap shoves whoever is in front of you. Try it on the stormtroopers, then go meet Captain Phasma.",
-                buttons: [{ label: "Got it", onClick: () => this.closeCard() }],
-            });
-            this.refreshObjective();
+            this.teachPush();
             return;
         }
         if (near(s.chest, 44) && !this.owns("rock")) {
@@ -601,6 +661,36 @@ const Game = {
         this.toast("Nothing nearby");
     },
 
+    teachPush() {
+        if (this.owns("push") || this.frozen) return;
+        this.grantPower("push");
+        this.save();
+        SoundSystem.unlock();
+        SoundSystem.learned();
+        this.openCard({
+            kicker: "Docking Ring",
+            title: "Force Push",
+            loud: true,
+            powerDrop: true,
+            body: "The blue terminal teaches Force Push. Press 1, tap gem 1, or hold Power. A short tap shoves whoever is in front of you. Try it on the stormtroopers, then go meet Captain Phasma.",
+            buttons: [{ label: "Got it", onClick: () => this.closeCard() }],
+        });
+        this.refreshObjective();
+    },
+
+    nudgeLesson(dt) {
+        const s = this.sector;
+        if (!s || s.id !== "dock" || !s.lesson || this.owns("push") || this.frozen || !this.player) return;
+        if (this.player.hp <= 0) return;
+        const d = dist(this.player.x, this.player.y, s.lesson.x, s.lesson.y);
+        if (d > 84) {
+            this.lessonNear = 0;
+            return;
+        }
+        this.lessonNear = (this.lessonNear || 0) + dt;
+        if (this.lessonNear >= 0.4) this.teachPush();
+    },
+
     grantPower(id) {
         const fresh = !this.owns(id);
         if (fresh) this.powers.push(id);
@@ -635,19 +725,36 @@ const Game = {
 
     onBossDown(id) {
         if (this.bossesDown.indexOf(id) < 0) this.bossesDown.push(id);
+        if (this.companion) {
+            this.companion.cheer = 1.8;
+            this.companion.wiggle = 1.6;
+            Combat.burst(this, this.companion.x, this.companion.y, PALETTE.gold);
+            Combat.burst(this, this.companion.x, this.companion.y - 10, PALETTE.foam);
+            Combat.confetti(this, this.companion.x, this.companion.y - 8);
+            this.fx.push({ kind: "ring", x: this.companion.x, y: this.companion.y, r: 10, life: 0.7, color: PALETTE.gold, grow: 240 });
+            this.fx.push({ kind: "ring", x: this.companion.x, y: this.companion.y, r: 4, life: 0.45, color: PALETTE.foam, grow: 140 });
+            SoundSystem.cheer();
+        }
+        if (id === "chrome" && this.player) {
+            Combat.confetti(this, this.player.x, this.player.y - 12);
+            this.toast("You made it!");
+            this.toastT = 2.4;
+        }
         this.save();
-        this.pending = { t: 0.55, id: id };
+        this.pending = { t: 0.72, id: id };
     },
 
     onPlayerDown() {
-        if (this.downed) return;
+        if (UI.cardOpen && this.downed) return;
         this.downed = true;
         this.pending = null;
+        this.paused = false;
         this.openCard({
-            title: "Hull breach",
-            body: "The stormtroopers got through. This deck is still waiting.",
+            title: "Try again",
+            quick: true,
+            body: "That one got you. Press Space to jump back in.",
             buttons: [{
-                label: "Try this sector again",
+                label: "Try again",
                 onClick: () => {
                     this.closeCard();
                     this.enterSector(this.sectorIndex);
@@ -835,6 +942,7 @@ const Game = {
             enemies: [],
             shots: [],
             sparks: [],
+            confetti: [],
             spawn: 0.2,
             spawnN: 0,
             over: false,
@@ -854,6 +962,12 @@ const Game = {
         const c = this.chase;
         this.stepChaseSparks(c, dt);
         if (c.over) {
+            if (c.beat === "lose" && !c.card) {
+                this.paused = false;
+                c.card = true;
+                this.openChaseCard(c);
+                return;
+            }
             if (this.frozen && !c.card) return;
             if (c.beat === "win" && c.beatT > 0 && Math.random() < 0.55) {
                 this.chaseSpark(c, c.x + (Math.random() - 0.5) * 50, c.y + (Math.random() - 0.5) * 28, PALETTE.gold);
@@ -985,13 +1099,24 @@ const Game = {
         if (c.over) return;
         c.over = true;
         c.beat = beat;
-        c.beatT = beat === "win" ? 0.62 : 0.42;
+        c.beatT = beat === "win" ? 0.62 : 0;
+        if (beat === "lose") {
+            this.paused = false;
+            this.frozen = false;
+            c.card = true;
+            this.flash = 0.18;
+            SoundSystem.hurt();
+            this.openChaseCard(c);
+            return;
+        }
         if (beat === "win") {
             SoundSystem.fanfare();
             for (let i = 0; i < 4; i++) this.chaseSpark(c, c.x, c.y, i % 2 ? PALETTE.gold : PALETTE.foam);
-        } else {
-            this.flash = 0.18;
-            SoundSystem.hurt();
+            if (c.lane.id === "hangar") {
+                this.spawnChaseConfetti(c, c.x, c.y - 24, 40);
+                this.toast("You made it!");
+                this.toastT = 2.2;
+            }
         }
     },
 
@@ -1009,7 +1134,8 @@ const Game = {
         }
         this.openCard({
             title: "Lane breach",
-            body: lane.loseBody,
+            quick: true,
+            body: lane.loseBody + " Press Space to retry.",
             buttons: [
                 { label: "Retry the lane", onClick: () => this.startChase(lane.id) },
                 { label: lane.resolve ? "Skip the lane" : "Face the Emperor", onClick: () => this.finishChase(c) },
@@ -1060,6 +1186,32 @@ const Game = {
             s.y += s.vy * dt;
             s.life -= dt;
             if (s.life <= 0) c.sparks.splice(i, 1);
+        }
+        if (!c.confetti) c.confetti = [];
+        for (let i = c.confetti.length - 1; i >= 0; i--) {
+            const bit = c.confetti[i];
+            bit.x += bit.vx * dt;
+            bit.y += bit.vy * dt;
+            bit.vy += 90 * dt;
+            bit.life -= dt;
+            if (bit.life <= 0) c.confetti.splice(i, 1);
+        }
+    },
+
+    spawnChaseConfetti(c, x, y, n) {
+        if (!c.confetti) c.confetti = [];
+        const colors = [PALETTE.gold, PALETTE.foam, PALETTE.blue, PALETTE.green];
+        for (let i = 0; i < n; i++) {
+            c.confetti.push({
+                x: x + (Math.random() - 0.5) * 80,
+                y: y,
+                vx: (Math.random() - 0.5) * 120,
+                vy: -40 - Math.random() * 110,
+                life: 0.9 + Math.random() * 0.6,
+                color: colors[i % colors.length],
+                w: 2 + (i % 3),
+                h: 3 + (i % 2),
+            });
         }
     },
 
@@ -1194,6 +1346,14 @@ const Game = {
             ctx.fillRect(s.x - 1, s.y - 1, 3, 3);
             ctx.globalAlpha = 1;
         }
+        const bits = c.confetti || [];
+        for (let i = 0; i < bits.length; i++) {
+            const bit = bits[i];
+            ctx.globalAlpha = Math.max(0, Math.min(1, bit.life));
+            ctx.fillStyle = bit.color;
+            ctx.fillRect(bit.x, bit.y, bit.w || 3, bit.h || 3);
+            ctx.globalAlpha = 1;
+        }
         if (!(c.invuln > 0 && Math.floor(this.time * 16) % 2 === 0)) {
             blitShip(ctx, "ship-twin", c.x, c.y, c.facing.x || c.facing.y ? c.facing : { x: 0, y: -1 });
         }
@@ -1207,68 +1367,127 @@ const Game = {
             ctx.fillStyle = PALETTE.hull;
             for (let i = 0; i < 8; i++) {
                 const y = ((i * 90 + c.t * speed) % (CANVAS_H + 90)) - 40;
-                ctx.fillRect(CANVAS_W * 0.22, y, 14, 48);
-                ctx.fillRect(CANVAS_W * 0.78 - 14, y, 14, 48);
+                ctx.fillRect(CANVAS_W * 0.18, y, 18, 64);
+                ctx.fillRect(CANVAS_W * 0.82 - 18, y, 18, 64);
             }
             ctx.fillStyle = accent;
             for (let i = 0; i < 8; i++) {
                 const y = ((i * 90 + c.t * speed) % (CANVAS_H + 90)) - 28;
-                ctx.fillRect(CANVAS_W * 0.22 + 4, y, 6, 6);
-                ctx.fillRect(CANVAS_W * 0.78 - 10, y, 6, 6);
+                ctx.fillRect(CANVAS_W * 0.18 + 5, y, 8, 8);
+                ctx.fillRect(CANVAS_W * 0.82 - 13, y, 8, 8);
             }
+            ctx.fillStyle = PALETTE.panel;
+            ctx.fillRect(CANVAS_W * 0.18, 0, CANVAS_W * 0.64, 10);
             return;
         }
         if (props === "trench") {
-            const wall = Math.max(64, (c.lane.margin || 108) - 28);
+            const wall = Math.max(72, (c.lane.margin || 108) - 18);
             ctx.fillStyle = PALETTE.panel;
             ctx.fillRect(0, 0, wall, CANVAS_H);
             ctx.fillRect(CANVAS_W - wall, 0, wall, CANVAS_H);
             ctx.fillStyle = PALETTE.hull;
-            for (let i = 0; i < 10; i++) {
-                const y = ((i * 70 + c.t * speed) % (CANVAS_H + 70)) - 24;
-                ctx.fillRect(wall - 16, y, 16, 28);
-                ctx.fillRect(CANVAS_W - wall, y, 16, 28);
+            for (let i = 0; i < 9; i++) {
+                const y = ((i * 78 + c.t * speed) % (CANVAS_H + 78)) - 30;
+                ctx.fillRect(wall - 34, y, 34, 46);
+                ctx.fillRect(CANVAS_W - wall, y, 34, 46);
+                ctx.fillStyle = PALETTE.ink;
+                ctx.fillRect(wall - 34, y + 8, 12, 18);
+                ctx.fillRect(CANVAS_W - wall + 22, y + 8, 12, 18);
+                ctx.fillStyle = PALETTE.hull;
             }
             ctx.fillStyle = accent;
-            for (let i = 0; i < 10; i++) {
-                const y = ((i * 70 + c.t * speed) % (CANVAS_H + 70)) - 8;
-                ctx.fillRect(8, y, 10, 4);
-                ctx.fillRect(CANVAS_W - 18, y, 10, 4);
+            for (let i = 0; i < 12; i++) {
+                const y = ((i * 56 + c.t * (speed + 80)) % (CANVAS_H + 56)) - 8;
+                ctx.fillRect(wall + 6, y, CANVAS_W - wall * 2 - 12, 3);
             }
+            ctx.fillStyle = PALETTE.foam;
+            ctx.globalAlpha = 0.35;
+            for (let i = 0; i < 8; i++) {
+                const y = ((i * 90 + c.t * speed) % (CANVAS_H + 90)) - 12;
+                ctx.fillRect(10, y, 14, 4);
+                ctx.fillRect(CANVAS_W - 24, y, 14, 4);
+            }
+            ctx.globalAlpha = 1;
             return;
         }
         ctx.fillStyle = PALETTE.hull;
-        for (let i = 0; i < 12; i++) {
-            const y = ((i * 64 + c.t * speed) % (CANVAS_H + 64)) - 28;
-            ctx.fillRect(22, y, 10, 26);
-            ctx.fillRect(CANVAS_W - 32, y, 10, 26);
+        for (let i = 0; i < 10; i++) {
+            const y = ((i * 72 + c.t * speed) % (CANVAS_H + 72)) - 20;
+            ctx.fillStyle = i % 2 === 0 ? PALETTE.blue : PALETTE.gold;
+            ctx.globalAlpha = 0.55;
+            ctx.fillRect(36, y, CANVAS_W - 72, 6);
+            ctx.globalAlpha = 1;
         }
-        ctx.fillStyle = accent;
-        for (let i = 0; i < 8; i++) {
-            const y = ((i * 84 + c.t * (speed + 40)) % (CANVAS_H + 84)) - 36;
-            ctx.fillRect(CANVAS_W / 2 - 2, y, 4, 14);
+        ctx.fillStyle = PALETTE.panel;
+        for (let i = 0; i < 6; i++) {
+            const y = ((i * 120 + c.t * (speed * 0.6)) % (CANVAS_H + 120)) - 40;
+            ctx.fillRect(8, y, 22, 36);
+            ctx.fillRect(CANVAS_W - 30, y, 22, 36);
+            ctx.fillStyle = PALETTE.gold;
+            ctx.fillRect(14, y + 8, 8, 8);
+            ctx.fillRect(CANVAS_W - 22, y + 8, 8, 8);
+            ctx.fillStyle = PALETTE.panel;
         }
+        this.drawHangarDoors(ctx, c);
+    },
+
+    drawHangarDoors(ctx, c) {
+        const open = c.beat === "win" ? Math.max(0, Math.min(1, 1 - c.beatT / 0.62)) : 0;
+        const gap = 18 + open * (CANVAS_W * 0.28);
+        ctx.fillStyle = PALETTE.panel;
+        ctx.fillRect(0, 0, CANVAS_W / 2 - gap, 26);
+        ctx.fillRect(CANVAS_W / 2 + gap, 0, CANVAS_W / 2 - gap, 26);
+        ctx.fillStyle = PALETTE.gold;
+        ctx.fillRect(CANVAS_W / 2 - gap - 4, 0, 4, 26);
+        ctx.fillRect(CANVAS_W / 2 + gap, 0, 4, 26);
     },
 
     drawChaseFoe(ctx, c, e) {
         const face = { x: e.vx, y: Math.max(0.2, e.vy) };
         if (e.kind === "turret") {
+            ctx.fillStyle = PALETTE.hull;
+            ctx.fillRect(e.x - 10, e.y - 22, 20, 40);
             ctx.fillStyle = PALETTE.panel;
-            ctx.fillRect(e.x - 8, e.y - 12, 16, 22);
-            ctx.fillStyle = c.lane.accent;
-            ctx.fillRect(e.x - 3, e.y - 4, 6, 6);
+            ctx.fillRect(e.x - 6, e.y - 8, 12, 16);
+            ctx.fillStyle = PALETTE.danger;
+            ctx.fillRect(e.x - 3, e.y - 2, 6, 6);
             return;
         }
         if (e.kind === "debris") {
             blitShip(ctx, "debris", e.x, e.y, face);
+            ctx.fillStyle = PALETTE.metal;
+            ctx.fillRect(e.x - 10, e.y - 2, 6, 4);
+            ctx.fillRect(e.x + 4, e.y + 4, 5, 3);
             return;
         }
         if (e.kind === "shuttle") {
+            ctx.fillStyle = PALETTE.panel;
+            ctx.fillRect(e.x - 16, e.y - 10, 32, 6);
             ctx.fillStyle = PALETTE.orange;
-            ctx.fillRect(e.x - 10, e.y - 6, 20, 8);
-            blitShip(ctx, "ship-snub", e.x, e.y + 6, face);
+            ctx.fillRect(e.x - 6, e.y - 14, 12, 4);
+            blitShip(ctx, "ship-snub", e.x, e.y + 8, face);
             return;
         }
+        ctx.save();
+        ctx.translate(Math.round(e.x), Math.round(e.y));
+        ctx.strokeStyle = PALETTE.panel;
+        ctx.fillStyle = PALETTE.ink;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(-22, -8);
+        ctx.lineTo(-8, 0);
+        ctx.lineTo(-22, 8);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(22, -8);
+        ctx.lineTo(8, 0);
+        ctx.lineTo(22, 8);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
         blitShip(ctx, "ship-snub", e.x, e.y, face);
     },
 };

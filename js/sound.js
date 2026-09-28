@@ -103,10 +103,17 @@ const SoundSystem = {
 
     ui() { this.tone(660, 0.06, "square", 0.2, 880); },
 
+    hum() {
+        this.tone(96, 0.2, "sawtooth", 0.07, 150);
+        this.tone(188, 0.24, "triangle", 0.11, 92);
+        this.noise(0.18, 0.07, 860, 2.4, "bandpass");
+    },
+
     swing() {
-        this.noise(0.12, 0.22, 2400, 1.4, "bandpass");
-        this.tone(720, 0.05, "sawtooth", 0.12, 180);
-        this.tone(360, 0.09, "triangle", 0.1, 120);
+        this.hum();
+        this.noise(0.14, 0.24, 2400, 1.4, "bandpass");
+        this.tone(720, 0.07, "sawtooth", 0.14, 160);
+        this.tone(360, 0.12, "triangle", 0.12, 110);
     },
 
     spin() {
@@ -188,6 +195,23 @@ const SoundSystem = {
     bond() {
         this.tone(392, 0.18, "sine", 0.16, 523);
         this.tone(494, 0.26, "triangle", 0.12, 660);
+    },
+
+    cheer() {
+        this.tone(523, 0.08, "triangle", 0.16, 784);
+        this.tone(659, 0.14, "sine", 0.14, 880);
+    },
+
+    echo() {
+        this.tone(494, 0.12, "sine", 0.22, 784);
+        this.tone(659, 0.16, "triangle", 0.18, 988);
+        this.tone(784, 0.22, "sine", 0.14);
+    },
+
+    hope() {
+        this.hum();
+        this.tone(523, 0.1, "triangle", 0.16, 784);
+        this.tone(392, 0.16, "sine", 0.12, 660);
     },
 
     fanfare() {
