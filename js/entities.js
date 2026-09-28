@@ -28,7 +28,8 @@ function planHooded(e) {
 // Phasma: a lane, then a straight rush.
 // Inquisitor: a circle on you, then a blink into it. The first ring is the teach.
 // After each blink she steps back and holds so a saber and Force Push can land.
-// Vader: an orange tether, then a pull.
+// Vader: an orange tether, then a pull. After the first tug he holds in
+// saber reach, just outside the ring, so the plate can be spent.
 // Kylo: a gold cross, then a short lunge and a bolt. After the first cross
 // he holds in saber reach so the plate can be spent.
 // Emperor: a jagged storm, then lightning.
@@ -67,8 +68,19 @@ function startTelegraph(e, game) {
         };
         SoundSystem.spin();
     } else if (e.bossId === "dark") {
-        e.timer = 1.05;
-        e.telegraph = { kind: "tether", x2: player.x, y2: player.y, color: PALETTE.orange };
+        const opening = !!e.intro;
+        const spec = opening ? VADER_OPEN : VADER_CLEAR;
+        e.timer = spec.telegraph;
+        e.tetherInside = 0;
+        e.tetherLeft = 0;
+        e.telegraph = {
+            kind: "tether",
+            x2: player.x,
+            y2: player.y,
+            color: PALETTE.orange,
+            dur: spec.telegraph,
+            hurt: spec.hurt,
+        };
         SoundSystem.force("push", true);
     } else if (e.bossId === "fallen") {
         const opening = !!e.intro;
@@ -148,10 +160,42 @@ function commitBossAttack(e, game) {
             }
         }
     } else if (e.bossId === "dark") {
-        const pull = normalize(e.x - player.x, e.y - player.y);
-        player.kx += pull.x * 110;
-        player.ky += pull.y * 110;
-        if (dist(e.x, e.y, player.x, player.y) < 36) Combat.hurtPlayer(game, 1, e.x, e.y);
+        const opening = !!e.intro;
+        const spec = opening ? VADER_OPEN : VADER_CLEAR;
+        e.intro = false;
+        e.clearGrace = VADER_CLEAR.grace;
+        e.holdCap = VADER_CLEAR.hold;
+        e.farT = 0;
+        const triedLeave = !opening && (e.tetherLeft || 0) >= VADER_CLEAR.leave;
+        const camp = !opening && !triedLeave && (e.tetherInside || 0) >= VADER_CLEAR.lateEntry;
+        e.tetherInside = 0;
+        e.tetherLeft = 0;
+        e.holdBonus = 0;
+        const gap = dist(e.x, e.y, player.x, player.y);
+        if (opening) {
+            const pull = normalize(e.x - player.x, e.y - player.y);
+            player.kx += pull.x * spec.pull;
+            player.ky += pull.y * spec.pull;
+            if (gap < spec.hurt) Combat.hurtPlayer(game, 1, e.x, e.y);
+        } else if (gap < spec.hurt && camp) {
+            const before = player.hp;
+            Combat.hurtPlayer(game, 1, e.x, e.y);
+            if (player.hp < before) {
+                if (player.invuln < VADER_CLEAR.clipInvuln) player.invuln = VADER_CLEAR.clipInvuln;
+                const kick = Math.hypot(player.kx, player.ky);
+                if (kick > 96) {
+                    player.kx *= 96 / kick;
+                    player.ky *= 96 / kick;
+                }
+            }
+        } else if (gap < spec.hurt) {
+            const away = normalize(player.x - e.x, player.y - e.y);
+            if (away.x || away.y) {
+                player.kx += away.x * 72;
+                player.ky += away.y * 72;
+            }
+            if (player.invuln < VADER_CLEAR.shoveInvuln) player.invuln = VADER_CLEAR.shoveInvuln;
+        }
         const guards = game.enemies.filter((x) => x.alive && x.kind === "guard").length;
         if (e.summons < 2 && guards < 2) {
             const sx = e.x + 28;
@@ -226,6 +270,17 @@ function kyloCrossInside(e, player) {
     return along > -10 && along < len + player.r && lat < KYLO_CLEAR.lane + player.r;
 }
 
+// After a tug, settle into saber reach just outside the orange ring.
+function vaderPocket(e, player) {
+    const dir = normalize(player.x - e.x, player.y - e.y);
+    const gap = dist(e.x, e.y, player.x, player.y);
+    const pocket = VADER_CLEAR.pocket;
+    if (!dir.x && !dir.y) return { mx: 0, my: 0, speed: 0, gap: gap };
+    if (gap > pocket + 8) return { mx: dir.x, my: dir.y, speed: VADER_CLEAR.chase, gap: gap };
+    if (gap < pocket - 14) return { mx: -dir.x, my: -dir.y, speed: 36, gap: gap };
+    return { mx: 0, my: 0, speed: 0, gap: gap };
+}
+
 // After a cross, settle into saber reach and stay. Do not sprint past them.
 function kyloPocket(e, player) {
     const dir = normalize(player.x - e.x, player.y - e.y);
@@ -255,6 +310,11 @@ function updateBoss(e, game, dt) {
         e.kx *= damp;
         e.ky *= damp;
     }
+    if (e.bossId === "dark" && !e.intro && e.state !== "telegraph") {
+        const damp = Math.max(0, 1 - dt * 12);
+        e.kx *= damp;
+        e.ky *= damp;
+    }
     e.hitFlash = Math.max(0, e.hitFlash - dt);
     const player = game.player;
     if (!e.intro && e.seenHp != null && e.hp < e.seenHp && e.state !== "telegraph") {
@@ -278,9 +338,18 @@ function updateBoss(e, game, dt) {
                 const room = Math.max(0, cap - KYLO_CLEAR.hold);
                 e.holdBonus = Math.min(room, (e.holdBonus || 0) + stretch);
             }
+        } else if (e.bossId === "dark") {
+            const stretch = VADER_CLEAR.hitStretch;
+            const cap = VADER_CLEAR.stretchCap;
+            if (e.state === "approach" && e.clearGrace <= 0) {
+                e.timer = Math.min(cap, (e.timer || 0) + stretch);
+            } else {
+                const room = Math.max(0, cap - VADER_CLEAR.hold);
+                e.holdBonus = Math.min(room, (e.holdBonus || 0) + stretch);
+            }
         }
     }
-    if (e.bossId === "chrome" || e.bossId === "shadow" || e.bossId === "fallen") e.seenHp = e.hp;
+    if (e.bossId === "chrome" || e.bossId === "shadow" || e.bossId === "fallen" || e.bossId === "dark") e.seenHp = e.hp;
     if (e.state === "approach") {
         if (e.clearGrace > 0) {
             e.clearGrace -= dt;
@@ -303,6 +372,11 @@ function updateBoss(e, game, dt) {
                 mx = step.mx;
                 my = step.my;
                 speed = step.speed;
+            } else if (e.bossId === "dark" && !e.intro) {
+                const step = vaderPocket(e, player);
+                mx = step.mx;
+                my = step.my;
+                speed = step.speed;
             }
             slide(e, (mx * speed + e.kx) * dt, (my * speed + e.ky) * dt, game);
             if (e.clearGrace <= 0 && e.bossId === "chrome" && !e.intro) {
@@ -316,6 +390,10 @@ function updateBoss(e, game, dt) {
             } else if (e.clearGrace <= 0 && e.bossId === "fallen" && !e.intro) {
                 const base = e.holdCap || KYLO_CLEAR.hold;
                 e.timer = Math.min(KYLO_CLEAR.stretchCap, base + (e.holdBonus || 0));
+                e.holdBonus = 0;
+            } else if (e.clearGrace <= 0 && e.bossId === "dark" && !e.intro) {
+                const base = e.holdCap || VADER_CLEAR.hold;
+                e.timer = Math.min(VADER_CLEAR.stretchCap, base + (e.holdBonus || 0));
                 e.holdBonus = 0;
             }
         } else {
@@ -341,10 +419,15 @@ function updateBoss(e, game, dt) {
                 mx = step.mx;
                 my = step.my;
                 speed = step.speed;
+            } else if (e.bossId === "dark" && !e.intro) {
+                const step = vaderPocket(e, player);
+                mx = step.mx;
+                my = step.my;
+                speed = step.speed;
             } else if (e.bossId === "hooded") {
                 speed *= 0.35;
-            } else if (e.bossId === "dark") {
-                speed *= 0.58;
+            } else if (e.bossId === "dark" && e.intro) {
+                speed *= VADER_OPEN.approach;
             } else if (e.bossId === "chrome") {
                 speed *= e.intro ? PHASMA_OPEN.approach : PHASMA_CLEAR.approach;
                 if (!e.intro) {
@@ -359,7 +442,7 @@ function updateBoss(e, game, dt) {
             }
             const gapBefore = dist(e.x, e.y, player.x, player.y);
             slide(e, (mx * speed + e.kx) * dt, (my * speed + e.ky) * dt, game);
-            const reach = e.bossId === "hooded" ? 320 : e.bossId === "shadow" ? (e.intro ? INQUISITOR_OPEN.reach : INQUISITOR_CLEAR.reach) : e.bossId === "chrome" ? 200 : e.bossId === "dark" ? 168 : e.bossId === "fallen" && !e.intro ? KYLO_CLEAR.reach : 148;
+            const reach = e.bossId === "hooded" ? 320 : e.bossId === "shadow" ? (e.intro ? INQUISITOR_OPEN.reach : INQUISITOR_CLEAR.reach) : e.bossId === "chrome" ? 200 : e.bossId === "dark" ? (e.intro ? VADER_OPEN.reach : VADER_CLEAR.reach) : e.bossId === "fallen" && !e.intro ? KYLO_CLEAR.reach : 148;
             const gapNow = dist(e.x, e.y, player.x, player.y);
             let ready = false;
             if (e.bossId === "chrome" && !e.intro) {
@@ -384,6 +467,21 @@ function updateBoss(e, game, dt) {
                     else {
                         e.farT = (e.farT || 0) + dt;
                         ready = e.farT >= INQUISITOR_CLEAR.patience;
+                    }
+                } else {
+                    e.farT = 0;
+                    e.timer -= dt;
+                    ready = e.timer <= 0;
+                }
+            } else if (e.bossId === "dark" && !e.intro) {
+                // Same patience as the conduit: a kid sprinting off should not
+                // skip the hold and eat the next tug before a swing lands.
+                if (gapNow > VADER_CLEAR.leash) {
+                    const closing = gapNow < gapBefore - 0.04;
+                    if (closing) e.farT = 0;
+                    else {
+                        e.farT = (e.farT || 0) + dt;
+                        ready = e.farT >= VADER_CLEAR.patience;
                     }
                 } else {
                     e.farT = 0;
@@ -415,6 +513,15 @@ function updateBoss(e, game, dt) {
         if (e.telegraph && e.telegraph.kind === "tether") {
             e.telegraph.x2 = player.x;
             e.telegraph.y2 = player.y;
+            if (e.bossId === "dark" && !e.intro) {
+                const elapsed = (e.telegraph.dur || VADER_CLEAR.telegraph) - e.timer;
+                const gap = dist(e.x, e.y, player.x, player.y);
+                if (gap < VADER_CLEAR.hurt && elapsed >= VADER_CLEAR.earlyGrace) {
+                    e.tetherInside = (e.tetherInside || 0) + dt;
+                } else if (gap >= VADER_CLEAR.hurt && elapsed >= 0.16) {
+                    e.tetherLeft = (e.tetherLeft || 0) + dt;
+                }
+            }
         }
         if (e.telegraph && e.telegraph.kind === "storm") {
             const face = e.facing || { x: 1, y: 0 };
@@ -652,8 +759,8 @@ const Entities = {
             gap: stats.gap,
             facing: { x: 0, y: 1 },
             state: "approach",
-            timer: bossId === "chrome" ? PHASMA_OPEN.delay : bossId === "shadow" ? INQUISITOR_OPEN.delay : bossId === "fallen" ? KYLO_OPEN.delay : 0.7,
-            intro: bossId === "chrome" || bossId === "shadow" || bossId === "fallen",
+            timer: bossId === "chrome" ? PHASMA_OPEN.delay : bossId === "shadow" ? INQUISITOR_OPEN.delay : bossId === "fallen" ? KYLO_OPEN.delay : bossId === "dark" ? VADER_OPEN.delay : 0.7,
+            intro: bossId === "chrome" || bossId === "shadow" || bossId === "fallen" || bossId === "dark",
             clearGrace: 0,
             hugT: 0,
             telegraph: null,
@@ -939,6 +1046,20 @@ function drawTelegraph(ctx, e, cam) {
         ctx.globalAlpha = 1;
         ctx.strokeRect(8, -t.width / 2, t.len, t.width);
     } else if (t.kind === "tether") {
+        if (t.hurt) {
+            ctx.globalAlpha = 0.24;
+            ctx.beginPath();
+            ctx.arc(x, y, t.hurt, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.globalAlpha = 1;
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = PALETTE.foam;
+            ctx.beginPath();
+            ctx.arc(x, y, t.hurt, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.strokeStyle = t.color;
+            ctx.lineWidth = 2;
+        }
         ctx.beginPath();
         ctx.moveTo(x, y);
         ctx.lineTo(t.x2 - cam.x, t.y2 - cam.y);
