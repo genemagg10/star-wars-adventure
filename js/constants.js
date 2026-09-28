@@ -259,6 +259,45 @@ const KYLO_CLEAR = {
     aim: 210,
 };
 
+// First orange tether. Same tug as before: it hurts only if you are still
+// inside his reach. The early walk-in chip is this beat.
+const VADER_OPEN = {
+    delay: 0.7,
+    approach: 0.58,
+    telegraph: 1.05,
+    hurt: 36,
+    pull: 110,
+    reach: 168,
+};
+
+// Finish window. After that tug he stands in saber reach, just outside the
+// orange ring, and the hold runs long enough to spend the hit points still
+// on the plate (the stall was around 28 of 36). A saber or Force hit stretches
+// the hold, and it connects even if they stopped and the stick still points
+// at the dodge. Stepping out of a later ring shoves, with a short breather,
+// and does not take a heart. Standing in the ring the whole time still takes
+// one, then a longer breather so the gallery troopers cannot turn that heart
+// into a spiral.
+const VADER_CLEAR = {
+    telegraph: 1.2,
+    hurt: 36,
+    grace: 0.55,
+    pocket: 44,
+    leash: 120,
+    patience: 4.0,
+    hold: 12,
+    hitStretch: 2.0,
+    stretchCap: 18,
+    chase: 160,
+    leave: 0.18,
+    lateEntry: 0.4,
+    earlyGrace: 0.2,
+    shoveInvuln: 1.8,
+    clipInvuln: 2.6,
+    reach: 210,
+    aim: 220,
+};
+
 const ACHIEVEMENTS = {
     saved: "Death Star Saved",
     sticker: "Chewbacca-bot Sticker",

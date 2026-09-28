@@ -50,6 +50,44 @@ function kyloHoldBreath(game) {
     return false;
 }
 
+// Same idea in the Throne Gallery. The orange ring is not a free hit.
+// Once he is holding in reach, a saber or Force cast connects even if
+// the stick still points at the dodge.
+function darkPunish(e) {
+    if (!e || !e.alive || e.bossId !== "dark" || e.intro) return false;
+    if (e.state === "telegraph") return false;
+    return true;
+}
+
+function darkAim(game, source, maxDist) {
+    let best = null;
+    let bestD = maxDist;
+    const list = game.enemies || [];
+    for (let i = 0; i < list.length; i++) {
+        const e = list[i];
+        if (!darkPunish(e)) continue;
+        const d = dist(source.x, source.y, e.x, e.y);
+        if (d < bestD) {
+            best = e;
+            bestD = d;
+        }
+    }
+    return best;
+}
+
+// During the finish hold, a heart from the tug or the gallery troopers
+// should not chain. The first tether still uses the short breather.
+function vaderHoldBreath(game) {
+    const list = game.enemies || [];
+    for (let i = 0; i < list.length; i++) {
+        const e = list[i];
+        if (!e.alive || e.bossId !== "dark" || e.intro) continue;
+        if (e.state !== "approach" || e.clearGrace > 0) continue;
+        return true;
+    }
+    return false;
+}
+
 const Combat = {
     hurtEnemy(game, ent, dmg) {
         if (!ent || !ent.alive) return;
@@ -89,6 +127,9 @@ const Combat = {
         p.invuln = 1.2;
         if (p.hp > 0 && kyloHoldBreath(game) && p.invuln < KYLO_CLEAR.clipInvuln) {
             p.invuln = KYLO_CLEAR.clipInvuln;
+        }
+        if (p.hp > 0 && vaderHoldBreath(game) && p.invuln < VADER_CLEAR.clipInvuln) {
+            p.invuln = VADER_CLEAR.clipInvuln;
         }
         const away = normalize(p.x - fromX, p.y - fromY);
         p.kx = away.x * 180;
@@ -158,7 +199,7 @@ const Combat = {
             const dx = e.x - p.x;
             const dy = e.y - p.y;
             const d = Math.hypot(dx, dy) || 1;
-            const open = shadowPunish(e) || fallenPunish(e);
+            const open = shadowPunish(e) || fallenPunish(e) || darkPunish(e);
             if (open) {
                 if (d >= range + e.r + 18) continue;
             } else if (d >= range + e.r * 0.5 + 6) continue;
@@ -224,8 +265,10 @@ const Combat = {
         p.specialT = 0.36;
         let dir = p.facing.x || p.facing.y ? p.facing : { x: 1, y: 0 };
         const kylo = fallenAim(game, p, KYLO_CLEAR.aim);
-        if (kylo) {
-            const aim = normalize(kylo.x - p.x, kylo.y - p.y);
+        const vader = kylo ? null : darkAim(game, p, VADER_CLEAR.aim);
+        const marked = kylo || vader;
+        if (marked) {
+            const aim = normalize(marked.x - p.x, marked.y - p.y);
             if (aim.x || aim.y) {
                 dir = aim;
                 p.facing = { x: aim.x, y: aim.y };
@@ -298,8 +341,10 @@ const Combat = {
         const team = opts.team || "player";
         if (team !== "foe" && (id === "throw" || id === "rock")) {
             const kylo = fallenAim(game, source, KYLO_CLEAR.aim);
-            if (kylo) {
-                const aim = normalize(kylo.x - source.x, kylo.y - source.y);
+            const vader = kylo ? null : darkAim(game, source, VADER_CLEAR.aim);
+            const marked = kylo || vader;
+            if (marked) {
+                const aim = normalize(marked.x - source.x, marked.y - source.y);
                 if (aim.x || aim.y) source.facing = { x: aim.x, y: aim.y };
             }
         }
@@ -320,7 +365,7 @@ const Combat = {
             const dx = t.x - source.x;
             const dy = t.y - source.y;
             const d = Math.hypot(dx, dy) || 1;
-            const open = team !== "foe" && (shadowPunish(t) || fallenPunish(t));
+            const open = team !== "foe" && (shadowPunish(t) || fallenPunish(t) || darkPunish(t));
             if (open) {
                 if (d > range + (t.r || 0) + 20) continue;
             } else if (d > range + (t.r || 0)) continue;
