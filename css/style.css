@@ -448,6 +448,19 @@ body.playing.has-coarse.hud-lock #touch { display: none; }
     color: var(--gold);
 }
 
+#btn-interact.is-lesson {
+    opacity: 1;
+    border-color: var(--blue);
+    background: rgba(77, 163, 255, 0.45);
+    color: var(--foam);
+    font-size: 15px;
+    animation: lesson-pulse 0.8s ease-in-out infinite;
+}
+
+@keyframes lesson-pulse {
+    50% { box-shadow: 0 0 0 8px rgba(255, 200, 87, 0.55); }
+}
+
 #rotate-gate {
     display: none;
     position: fixed;

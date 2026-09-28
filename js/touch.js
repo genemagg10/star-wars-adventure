@@ -219,7 +219,10 @@ const TouchControls = {
         const glyphs = { push: "◎", throw: "↻", lightning: "↯", rock: "●" };
         const act = game.interactContext ? game.interactContext() : null;
         const interact = document.getElementById("btn-interact");
-        if (interact) interact.hidden = game.mode !== "play";
+        if (interact) {
+            interact.hidden = game.mode !== "play";
+            if (game.mode !== "play") interact.classList.remove("is-lesson");
+        }
         const specialBtn = document.getElementById("btn-special");
         if (game.mode === "chase") {
             this.setFace("btn-attack", "▲", "Fire", false);
@@ -237,6 +240,7 @@ const TouchControls = {
             const owned = id && game.owns(id);
             this.setFace("btn-power", owned ? glyphs[id] : "◇", owned ? POWERS[id].name : "No power yet", !owned);
             this.setFace("btn-interact", act ? act.icon : "·", act ? act.short : "Nothing nearby", !act);
+            if (interact) interact.classList.toggle("is-lesson", !!(act && act.short === "Learn Force Push"));
         }
 
         const box = document.getElementById("power-chips");

@@ -298,6 +298,7 @@ const Game = {
         if (this.player && this.player.hp <= 0 && !UI.cardOpen) this.onPlayerDown();
         if (this.frozen || !this.player) return;
         Entities.updateAll(this, dt, input);
+        this.nudgeLesson(dt);
         if (this.pending && !this.frozen) {
             this.pending.t -= dt;
             if (this.pending.t <= 0) {
@@ -435,6 +436,7 @@ const Game = {
         this.downed = false;
         this.chase = null;
         this.tapNudge = null;
+        this.lessonNear = 0;
         this.shots = [];
         this.fx = [];
         this.numbers = [];
@@ -445,8 +447,10 @@ const Game = {
         const bossDown = !!(spec.bossId && this.bossesDown.indexOf(spec.bossId) >= 0);
         const missing = spec.bossId === "hooded" ? this.missingPowers() : [];
         if (!bossDown && missing.length === 0) {
-            for (let i = 0; i < this.sector.guards.length; i++) {
-                const g = this.sector.guards[i];
+            const guardList = this.sector.guards;
+            const guardCap = spec.id === "hangar" ? 1 : guardList.length;
+            for (let i = 0; i < guardList.length && i < guardCap; i++) {
+                const g = guardList[i];
                 this.enemies.push(Entities.makeGuard(g.x, g.y));
             }
             if (this.sector.boss) {
@@ -462,8 +466,13 @@ const Game = {
         this.focusCamera();
         const rewardWaiting = bossDown && spec.bossId && !this.resolved[spec.bossId];
         if (!missing.length && !rewardWaiting) {
-            this.toast(spec.name);
-            this.toastT = 2.1;
+            if (spec.id === "dock" && !this.owns("push")) {
+                this.toast("Blue terminal: learn Force Push");
+                this.toastT = 3.4;
+            } else {
+                this.toast(spec.name);
+                this.toastT = 2.1;
+            }
         }
         if (missing.length) {
             const names = missing.map((id) => POWERS[id].name).join(", ");
@@ -537,6 +546,7 @@ const Game = {
     exitOpen() {
         const s = this.sector;
         if (!s || !s.exit) return false;
+        if (s.id === "dock" && s.lesson && !this.owns("push")) return false;
         if (this.chestBlocksExit()) return false;
         if (this.enemies.some((e) => e.alive)) return false;
         return true;
@@ -548,6 +558,10 @@ const Game = {
         this.hint = null;
         if (!p || !s) return;
         const near = (pt, r) => pt && dist(p.x, p.y, pt.x, pt.y) < r;
+        if (s.id === "dock" && s.lesson && !this.owns("push")) {
+            this.hint = { x: s.lesson.x, y: s.lesson.y, label: "Learn Force Push" };
+            return;
+        }
         if (near(s.lesson, 44) && !this.owns("push")) this.hint = { x: s.lesson.x, y: s.lesson.y, label: "Force terminal" };
         else if (near(s.chest, 44) && !this.owns("rock")) this.hint = { x: s.chest.x, y: s.chest.y, label: "Salvage chest" };
         else if (near(s.panel, 44) && !this.secretOpen) this.hint = { x: s.panel.x, y: s.panel.y, label: "Side hatch" };
@@ -568,7 +582,7 @@ const Game = {
     interactContext() {
         if (this.mode !== "play" || !this.hint) return null;
         const label = this.hint.label;
-        if (label === "Force terminal") return { icon: "◎", short: "Force terminal" };
+        if (label === "Learn Force Push" || label === "Force terminal") return { icon: "Push", short: "Learn Force Push" };
         if (label === "Salvage chest") return { icon: "▣", short: "Salvage chest" };
         if (label === "Side hatch") return { icon: "▤", short: "Side hatch" };
         if (label === "Sticker") return { icon: "✶", short: "Sticker" };
@@ -582,20 +596,18 @@ const Game = {
         const p = this.player;
         const s = this.sector;
         const near = (pt, r) => pt && dist(p.x, p.y, pt.x, pt.y) < r;
+        if (s.id === "dock" && s.lesson && !this.owns("push")) {
+            if (near(s.exit, 52)) {
+                this.toast("North lock is shut. Walk to the blue terminal.");
+                this.toastT = 3.2;
+                SoundSystem.ui();
+                return;
+            }
+            this.teachPush();
+            return;
+        }
         if (near(s.lesson, 44) && !this.owns("push")) {
-            this.grantPower("push");
-            this.save();
-            SoundSystem.unlock();
-            SoundSystem.learned();
-            this.openCard({
-                kicker: "Docking Ring",
-                title: "Force Push",
-                loud: true,
-                powerDrop: true,
-                body: "The blue terminal teaches Force Push. Press 1, tap gem 1, or hold Power. A short tap shoves whoever is in front of you. Try it on the stormtroopers, then go meet Captain Phasma.",
-                buttons: [{ label: "Got it", onClick: () => this.closeCard() }],
-            });
-            this.refreshObjective();
+            this.teachPush();
             return;
         }
         if (near(s.chest, 44) && !this.owns("rock")) {
@@ -647,6 +659,36 @@ const Game = {
             return;
         }
         this.toast("Nothing nearby");
+    },
+
+    teachPush() {
+        if (this.owns("push") || this.frozen) return;
+        this.grantPower("push");
+        this.save();
+        SoundSystem.unlock();
+        SoundSystem.learned();
+        this.openCard({
+            kicker: "Docking Ring",
+            title: "Force Push",
+            loud: true,
+            powerDrop: true,
+            body: "The blue terminal teaches Force Push. Press 1, tap gem 1, or hold Power. A short tap shoves whoever is in front of you. Try it on the stormtroopers, then go meet Captain Phasma.",
+            buttons: [{ label: "Got it", onClick: () => this.closeCard() }],
+        });
+        this.refreshObjective();
+    },
+
+    nudgeLesson(dt) {
+        const s = this.sector;
+        if (!s || s.id !== "dock" || !s.lesson || this.owns("push") || this.frozen || !this.player) return;
+        if (this.player.hp <= 0) return;
+        const d = dist(this.player.x, this.player.y, s.lesson.x, s.lesson.y);
+        if (d > 84) {
+            this.lessonNear = 0;
+            return;
+        }
+        this.lessonNear = (this.lessonNear || 0) + dt;
+        if (this.lessonNear >= 0.4) this.teachPush();
     },
 
     grantPower(id) {
@@ -708,11 +750,11 @@ const Game = {
         this.pending = null;
         this.paused = false;
         this.openCard({
-            title: "Hull breach",
+            title: "Try again",
             quick: true,
-            body: "The stormtroopers got through. Press Space to try this deck again.",
+            body: "That one got you. Press Space to jump back in.",
             buttons: [{
-                label: "Try this sector again",
+                label: "Try again",
                 onClick: () => {
                     this.closeCard();
                     this.enterSector(this.sectorIndex);

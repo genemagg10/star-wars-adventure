@@ -125,7 +125,7 @@ const GUARD_STATS = {
 };
 
 const BOSS_STATS = {
-    chrome: { name: "Captain Phasma", hp: 16, speed: 48, gap: 1.75 },
+    chrome: { name: "Captain Phasma", hp: 12, speed: 44, gap: 2.15 },
     shadow: { name: "Inquisitor", hp: 30, speed: 78, gap: 1.2 },
     dark: { name: "Darth Vader", hp: 36, speed: 48, gap: 1.7 },
     fallen: { name: "Kylo Ren", hp: 28, speed: 60, gap: 1.5 },
