@@ -72,9 +72,39 @@ const SoundSystem = {
         }
     },
 
+    noise(dur, vol, freq, q, type) {
+        if (this.muted || !this.ctx || !this.master) return;
+        try {
+            const t = this.ctx.currentTime;
+            const frames = Math.max(1, Math.floor(this.ctx.sampleRate * dur));
+            const buffer = this.ctx.createBuffer(1, frames, this.ctx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < frames; i++) {
+                data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / frames, 2);
+            }
+            const src = this.ctx.createBufferSource();
+            src.buffer = buffer;
+            const filter = this.ctx.createBiquadFilter();
+            filter.type = type || "bandpass";
+            filter.frequency.setValueAtTime(Math.max(40, freq), t);
+            filter.Q.value = q || 1;
+            const gain = this.ctx.createGain();
+            gain.gain.setValueAtTime(vol, t);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
+            src.connect(filter);
+            filter.connect(gain);
+            gain.connect(this.master);
+            src.start(t);
+            src.stop(t + dur + 0.02);
+        } catch (err) {
+            // A blocked context should never halt the loop.
+        }
+    },
+
     ui() { this.tone(660, 0.06, "square", 0.2, 880); },
 
     swing() {
+        this.noise(0.12, 0.22, 2400, 1.4, "bandpass");
         this.tone(720, 0.05, "sawtooth", 0.12, 180);
         this.tone(360, 0.09, "triangle", 0.1, 120);
     },
@@ -84,12 +114,22 @@ const SoundSystem = {
         this.tone(640, 0.1, "sawtooth", 0.08, 220);
     },
 
-    shot() { this.tone(220, 0.07, "square", 0.18, 90); },
+    shot() {
+        this.noise(0.08, 0.2, 1800, 0.8, "highpass");
+        this.tone(220, 0.07, "square", 0.18, 90);
+    },
 
-    hurt() { this.tone(180, 0.12, "sawtooth", 0.22, 70); },
+    hurt() {
+        this.noise(0.14, 0.24, 420, 0.7, "lowpass");
+        this.tone(180, 0.12, "sawtooth", 0.22, 70);
+    },
 
     force(id, quiet) {
         const v = quiet ? 0.55 : 1;
+        if (id === "push") this.noise(0.16, 0.16 * v, 240, 0.6, "lowpass");
+        else if (id === "throw") this.noise(0.1, 0.14 * v, 3200, 1.6, "bandpass");
+        else if (id === "lightning") this.noise(0.12, 0.12 * v, 4200, 0.9, "highpass");
+        else if (id === "rock") this.noise(0.18, 0.2 * v, 180, 0.5, "lowpass");
         if (id === "push") this.push(v);
         else if (id === "throw") this.throwSaber(v);
         else if (id === "lightning") this.lightning(v);
@@ -164,5 +204,8 @@ const SoundSystem = {
         this.tone(784, 0.32, "sine", 0.14, 1568);
     },
 
-    boom() { this.tone(90, 0.18, "sawtooth", 0.26, 40); },
+    boom() {
+        this.noise(0.22, 0.28, 140, 0.4, "lowpass");
+        this.tone(90, 0.18, "sawtooth", 0.26, 40);
+    },
 };

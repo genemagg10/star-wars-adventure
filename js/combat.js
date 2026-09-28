@@ -7,6 +7,7 @@ const Combat = {
         if (!ent || !ent.alive) return;
         ent.hp -= dmg;
         ent.hitFlash = 0.12;
+        this.addDamageNumber(game, ent.x, ent.y, dmg, false);
         for (let n = 0; n < 3; n++) {
             const a = Math.random() * Math.PI * 2;
             game.fx.push({
@@ -16,6 +17,7 @@ const Combat = {
                 vx: Math.cos(a) * 70,
                 vy: Math.sin(a) * 70,
                 life: 0.12,
+                maxLife: 0.12,
                 color: PALETTE.foam,
             });
         }
@@ -42,6 +44,7 @@ const Combat = {
         p.ky = away.y * 180;
         game.shake = 0.12;
         game.flash = 0.12;
+        this.addDamageNumber(game, p.x, p.y, dmg, false);
         SoundSystem.hurt();
         if (p.hp > 0 && p.hp <= 2) SoundSystem.lowHp();
         if (p.hp <= 0) {
@@ -54,13 +57,15 @@ const Combat = {
         for (let i = 0; i < 7; i++) {
             const a = Math.random() * Math.PI * 2;
             const spd = 30 + Math.random() * 50;
+            const life = 0.28 + Math.random() * 0.12;
             game.fx.push({
                 kind: "spark",
                 x: x,
                 y: y,
                 vx: Math.cos(a) * spd,
                 vy: Math.sin(a) * spd,
-                life: 0.28 + Math.random() * 0.12,
+                life: life,
+                maxLife: life,
                 color: color,
             });
         }
@@ -123,6 +128,7 @@ const Combat = {
             if (connected && p.hopeCd <= 0 && p.hp < p.maxHp) {
                 p.hp += 1;
                 p.hopeCd = 2.4;
+                this.addDamageNumber(game, p.x, p.y, 1, true);
                 this.burst(game, p.x, p.y, PALETTE.green);
             }
         }
@@ -315,7 +321,10 @@ const Combat = {
             }
             if (s.kind === "saber") {
                 s.spin = (s.spin || 0) + dt * 22;
-                game.fx.push({ kind: "spark", x: s.x, y: s.y, vx: 0, vy: 0, life: 0.08, color: s.color });
+                game.fx.push({ kind: "spark", x: s.x, y: s.y, vx: 0, vy: 0, life: 0.08, maxLife: 0.08, color: s.color });
+            }
+            if (s.kind === "bow") {
+                game.fx.push({ kind: "spark", x: s.x, y: s.y, vx: (Math.random() - 0.5) * 12, vy: (Math.random() - 0.5) * 12, life: 0.1, maxLife: 0.1, color: PALETTE.gold });
             }
             if (s.kind === "rock") {
                 s.hop += dt;
@@ -366,9 +375,24 @@ const Combat = {
         game.shots = keep;
     },
 
+    addDamageNumber(game, x, y, amount, heal) {
+        if (!game.numbers) game.numbers = [];
+        const n = Math.max(1, Math.round(amount));
+        game.numbers.push({
+            x: x + (Math.random() - 0.5) * 14,
+            y: y - 16,
+            text: heal ? "+" + n : "−" + n,
+            heal: !!heal,
+            life: 0.75,
+            maxLife: 0.75,
+            vy: -42,
+        });
+    },
+
     updateFx(game, dt) {
         for (let i = 0; i < game.fx.length; i++) {
             const f = game.fx[i];
+            if (f.kind === "spark" && f.maxLife == null) f.maxLife = f.life;
             f.life -= dt;
             if (f.kind === "spark") {
                 f.x += f.vx * dt;
@@ -377,6 +401,13 @@ const Combat = {
             if (f.kind === "ring") f.r += dt * (f.grow || 70);
         }
         game.fx = game.fx.filter((f) => f.life > 0);
+        if (!game.numbers) return;
+        for (let i = 0; i < game.numbers.length; i++) {
+            const d = game.numbers[i];
+            d.y += d.vy * dt;
+            d.life -= dt;
+        }
+        game.numbers = game.numbers.filter((d) => d.life > 0);
     },
 };
 

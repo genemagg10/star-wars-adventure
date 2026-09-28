@@ -104,6 +104,7 @@ const Game = {
     bannerT: 0,
     toastText: "",
     toastT: 0,
+    numbers: [],
     secretOpen: false,
     hazardT: 0.4,
     pending: null,
@@ -375,6 +376,7 @@ const Game = {
         this.downed = false;
         this.shots = [];
         this.fx = [];
+        this.numbers = [];
         this.hint = null;
         this.bannerT = 2.3;
         this.player = Entities.makePlayer(this.heroId, this.sector.spawn.x, this.sector.spawn.y);
@@ -477,10 +479,31 @@ const Game = {
         this.hint = null;
         if (!p || !s) return;
         const near = (pt, r) => pt && dist(p.x, p.y, pt.x, pt.y) < r;
-        if (near(s.chest, 44) && !this.owns("rock")) this.hint = { x: s.chest.x, y: s.chest.y, label: "Chest" };
-        else if (near(s.panel, 44) && !this.secretOpen) this.hint = { x: s.panel.x, y: s.panel.y, label: "Hatch" };
+        if (near(s.chest, 44) && !this.owns("rock")) this.hint = { x: s.chest.x, y: s.chest.y, label: "Salvage chest" };
+        else if (near(s.panel, 44) && !this.secretOpen) this.hint = { x: s.panel.x, y: s.panel.y, label: "Side hatch" };
         else if (near(s.sticker, 44) && this.secretOpen && !this.sticker) this.hint = { x: s.sticker.x, y: s.sticker.y, label: "Sticker" };
-        else if (near(s.exit, 44)) this.hint = { x: s.exit.x, y: s.exit.y, label: this.exitOpen() ? "Leave" : "Shut" };
+        else if (near(s.exit, 44)) this.hint = { x: s.exit.x, y: s.exit.y, label: this.exitOpen() ? "North lock" : "North lock shut" };
+        else if (near(s.spawn, 44) && this.chaseOffer()) this.hint = { x: s.spawn.x, y: s.spawn.y, label: "Chase pad" };
+    },
+
+    chaseOffer() {
+        const s = this.sector;
+        if (!s) return null;
+        if (s.id === "hangar" && this.bossesDown.indexOf("chrome") >= 0 && !this.resolved.chrome) return "hangar";
+        if (s.id === "gallery" && this.bossesDown.indexOf("dark") >= 0 && !this.resolved.dark) return "bay";
+        if (s.id === "core" && !this.missingPowers().length && this.bossesDown.indexOf("hooded") < 0 && !this.resolved.trench) return "trench";
+        return null;
+    },
+
+    interactContext() {
+        if (this.mode !== "play" || !this.hint) return null;
+        const label = this.hint.label;
+        if (label === "Salvage chest") return { icon: "▣", short: "Salvage chest" };
+        if (label === "Side hatch") return { icon: "▤", short: "Side hatch" };
+        if (label === "Sticker") return { icon: "✶", short: "Sticker" };
+        if (label === "North lock" || label === "North lock shut") return { icon: "⇧", short: label };
+        if (label === "Chase pad") return { icon: "◈", short: "Chase pad" };
+        return { icon: "✦", short: label };
     },
 
     tryInteract() {
@@ -529,6 +552,11 @@ const Game = {
             } else {
                 this.toast("The way is shut");
             }
+            return;
+        }
+        const lane = this.chaseOffer();
+        if (lane && near(s.spawn, 44)) {
+            this.startChase(lane);
             return;
         }
         this.toast("Nothing nearby");

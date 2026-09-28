@@ -426,6 +426,7 @@ const Entities = {
         }
         drawShots(ctx, game);
         drawFx(ctx, game);
+        drawNumbers(ctx, game);
         if (game.hint) {
             const touch = document.body.classList.contains("touch") || document.body.classList.contains("has-coarse");
             ctx.fillStyle = PALETTE.gold;
@@ -620,7 +621,11 @@ function drawFx(ctx, game) {
         ctx.globalAlpha = Math.max(0, Math.min(1, f.life * 3));
         ctx.strokeStyle = f.color;
         ctx.fillStyle = f.color;
-        if (f.kind === "spark") ctx.fillRect(f.x - cam.x, f.y - cam.y, 2, 2);
+        if (f.kind === "spark") {
+            const max = f.maxLife || f.life || 1;
+            ctx.globalAlpha = Math.max(0, Math.min(1, f.life / max));
+            ctx.fillRect(f.x - cam.x, f.y - cam.y, 2, 2);
+        }
         else if (f.kind === "bolt" && f.pts && f.pts.length) {
             ctx.lineWidth = 3;
             ctx.beginPath();
@@ -638,4 +643,27 @@ function drawFx(ctx, game) {
         }
         ctx.restore();
     }
+}
+
+function drawNumbers(ctx, game) {
+    const list = game.numbers;
+    if (!list || !list.length) return;
+    const cam = game.camera;
+    ctx.save();
+    ctx.font = "bold 16px ui-monospace, monospace";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    for (let i = 0; i < list.length; i++) {
+        const d = list[i];
+        const max = d.maxLife || 0.75;
+        ctx.globalAlpha = Math.max(0, Math.min(1, d.life / max));
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = PALETTE.ink;
+        ctx.fillStyle = d.heal ? PALETTE.green : PALETTE.foam;
+        const x = d.x - cam.x;
+        const y = d.y - cam.y;
+        ctx.strokeText(d.text, x, y);
+        ctx.fillText(d.text, x, y);
+    }
+    ctx.restore();
 }

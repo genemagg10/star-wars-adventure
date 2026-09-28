@@ -418,6 +418,9 @@ body.playing.has-coarse.hud-lock #touch { display: none; }
     height: 76px;
     border-radius: 50%;
     padding: 6px;
+    font-size: 26px;
+    letter-spacing: 0;
+    text-transform: none;
     touch-action: none;
 }
 
@@ -425,6 +428,7 @@ body.playing.has-coarse.hud-lock #touch { display: none; }
 #btn-power { border-color: var(--lightning); }
 #btn-interact { border-color: var(--gold); }
 
+#btn-power.is-idle,
 #btn-interact.is-idle {
     opacity: 0.38;
     border-color: var(--panel);

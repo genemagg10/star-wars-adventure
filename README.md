@@ -31,7 +31,8 @@ Open `http://localhost:8080`. A local server is the reliable way to run it. The 
 
 Turn the phone sideways. A stick sits on the left. Attack and Power sit on the right.
 
-- A strip of **four gems** stays on screen while you walk a deck. Only powers you own light up. Dark gems are locked.
+- Attack, Power, and Interact wear symbols. Power dims until you own a Force power. Interact dims until something is in reach, then it shows the salvage chest, the side hatch, the north lock, or a chase pad.
+- A strip of **four slots** stays on screen while you walk a deck: Push, Throw, Lightning, Rock, the same as keys 1–4. Locked slots stay dim. The lit slot is the one a short tap on Power will use. Hold Power to cycle.
 - Tap a lit gem **1–4** to select that power. Hold **Power** to cycle to the next unlocked power. A short tap on **Power** uses the lit one. The newest power still selects itself when you learn it.
 - The same four gems sit on the canvas under the objective. The lit gem grows, and a ring fills in while that power cools down.
 - **Interact** stays dim until you stand beside a door, chest, hatch, or exit. It then names that thing (Chest, Hatch, Leave).
