@@ -119,6 +119,7 @@ const Game = {
     trashCleared: false,
     trashBeatLive: false,
     trashBreath: 0,
+    coreBreath: 0,
     trashLeaveTold: false,
     sector: null,
     player: null,
@@ -440,6 +441,7 @@ const Game = {
         this.trashCleared = false;
         this.trashBeatLive = false;
         this.trashBreath = 0;
+        this.coreBreath = 0;
         this.trashLeaveTold = false;
         UI.hideAll();
         this.enterSector(0);
@@ -498,6 +500,7 @@ const Game = {
         this.tapNudge = null;
         this.lessonNear = 0;
         this.trashBreath = 0;
+        this.coreBreath = 0;
         this.trashBeatLive = false;
         this.trashLeaveTold = false;
         this.shots = [];

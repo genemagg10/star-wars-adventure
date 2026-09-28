@@ -89,9 +89,65 @@ function vaderHoldBreath(game) {
     return false;
 }
 
+// Same idea at the Core Gate. The opening storm is not a free hit.
+// After that, the hold connects even if the stick still points at the dodge.
+// The painted storm itself is not a free hit.
+function hoodedPunish(e) {
+    if (!e || !e.alive || e.bossId !== "hooded" || e.intro) return false;
+    if (e.state === "telegraph") return false;
+    return true;
+}
+
+function hoodedAim(game, source, maxDist) {
+    let best = null;
+    let bestD = maxDist;
+    const list = game.enemies || [];
+    for (let i = 0; i < list.length; i++) {
+        const e = list[i];
+        if (!hoodedPunish(e)) continue;
+        const d = dist(source.x, source.y, e.x, e.y);
+        if (d < bestD) {
+            best = e;
+            bestD = d;
+        }
+    }
+    return best;
+}
+
+// After the first storm, a heart from the bolt or the core troopers
+// should not chain. That storm ends the intro as it lands, so the
+// heart that opens the finish window already gets this breather.
+function emperorHoldBreath(game) {
+    const list = game.enemies || [];
+    for (let i = 0; i < list.length; i++) {
+        const e = list[i];
+        if (!e.alive || e.bossId !== "hooded" || e.intro) continue;
+        return true;
+    }
+    return false;
+}
+
+// Troopers stay quiet during the punish hold, and for a breath after a
+// heart, so they cannot turn the finish into another death loop.
+function emperorGuardsQuiet(game) {
+    if (game.coreBreath > 0) return true;
+    const list = game.enemies || [];
+    for (let i = 0; i < list.length; i++) {
+        const e = list[i];
+        if (!e.alive || e.bossId !== "hooded" || e.intro) continue;
+        if (e.state === "approach" && !(e.clearGrace > 0)) return true;
+    }
+    return false;
+}
+
 const Combat = {
     hurtEnemy(game, ent, dmg) {
         if (!ent || !ent.alive) return;
+        // Last slice of the Emperor's plate. A messy Lightning or saber
+        // still finishes; a hit from full health stays a chip.
+        if (ent.bossId === "hooded" && ent.hp <= EMPEROR_CLEAR.finishHp && ent.hp > 0) {
+            dmg += EMPEROR_CLEAR.finishBonus;
+        }
         ent.hp -= dmg;
         ent.hitFlash = 0.12;
         this.addDamageNumber(game, ent.x, ent.y, dmg, false);
@@ -131,6 +187,10 @@ const Combat = {
         }
         if (p.hp > 0 && vaderHoldBreath(game) && p.invuln < VADER_CLEAR.clipInvuln) {
             p.invuln = VADER_CLEAR.clipInvuln;
+        }
+        if (p.hp > 0 && emperorHoldBreath(game)) {
+            if (p.invuln < EMPEROR_CLEAR.breath) p.invuln = EMPEROR_CLEAR.breath;
+            game.coreBreath = Math.max(game.coreBreath || 0, EMPEROR_CLEAR.breath);
         }
         // Compactor clear only. A heart from a bolt or the sludge should not
         // become a second bolt from the other stormtrooper.
@@ -206,9 +266,9 @@ const Combat = {
             const dx = e.x - p.x;
             const dy = e.y - p.y;
             const d = Math.hypot(dx, dy) || 1;
-            const open = shadowPunish(e) || fallenPunish(e) || darkPunish(e);
+            const open = shadowPunish(e) || fallenPunish(e) || darkPunish(e) || hoodedPunish(e);
             if (open) {
-                const pad = darkPunish(e) ? VADER_CLEAR.swingPad : 18;
+                const pad = darkPunish(e) ? VADER_CLEAR.swingPad : hoodedPunish(e) ? EMPEROR_CLEAR.swingPad : 18;
                 if (d >= range + e.r + pad) continue;
             } else if (d >= range + e.r * 0.5 + 6) continue;
             const dot = (dx / d) * p.facing.x + (dy / d) * p.facing.y;
@@ -356,6 +416,13 @@ const Combat = {
                 if (aim.x || aim.y) source.facing = { x: aim.x, y: aim.y };
             }
         }
+        if (team !== "foe") {
+            const hood = hoodedAim(game, source, EMPEROR_CLEAR.aim);
+            if (hood) {
+                const aim = normalize(hood.x - source.x, hood.y - source.y);
+                if (aim.x || aim.y) source.facing = { x: aim.x, y: aim.y };
+            }
+        }
         if (id === "push") this.push(game, source, dmg, team, !!opts.weak);
         else if (id === "throw") this.saberThrow(game, source, dmg, team, !!opts.weak, !!opts.aimAssist);
         else if (id === "lightning") this.lightning(game, source, dmg, team, !!opts.weak);
@@ -373,9 +440,9 @@ const Combat = {
             const dx = t.x - source.x;
             const dy = t.y - source.y;
             const d = Math.hypot(dx, dy) || 1;
-            const open = team !== "foe" && (shadowPunish(t) || fallenPunish(t) || darkPunish(t));
+            const open = team !== "foe" && (shadowPunish(t) || fallenPunish(t) || darkPunish(t) || hoodedPunish(t));
             if (open) {
-                const pad = darkPunish(t) ? VADER_CLEAR.swingPad : 20;
+                const pad = darkPunish(t) ? VADER_CLEAR.swingPad : hoodedPunish(t) ? EMPEROR_CLEAR.swingPad : 20;
                 if (d > range + (t.r || 0) + pad) continue;
             } else if (d > range + (t.r || 0)) continue;
             const dot = (dx / d) * dir.x + (dy / d) * dir.y;
@@ -454,6 +521,11 @@ const Combat = {
             if (beamHits(source, game.player, dir, range, 16)) {
                 this.hurtPlayer(game, Math.max(1, dmg), source.x, source.y);
             }
+            return;
+        }
+        const marked = hoodedAim(game, source, EMPEROR_CLEAR.aim);
+        if (marked) {
+            this.hurtEnemy(game, marked, dmg);
             return;
         }
         let best = null;

@@ -32,7 +32,8 @@ function planHooded(e) {
 // saber reach, just outside the ring, so the plate can be spent.
 // Kylo: a gold cross, then a short lunge and a bolt. After the first cross
 // he holds in saber reach so the plate can be spent.
-// Emperor: a jagged storm, then lightning.
+// Emperor: a jagged storm, then lightning. After the first storm he holds
+// in saber reach so Lightning and the saber can spend the plate.
 function startTelegraph(e, game) {
     const player = game.player;
     const dir = normalize(player.x - e.x, player.y - e.y);
@@ -92,12 +93,17 @@ function startTelegraph(e, game) {
         e.telegraph = { kind: "cross", dir: face, len: spec.len, dur: spec.telegraph, color: PALETTE.gold };
         SoundSystem.shot();
     } else {
-        e.timer = 0.82;
+        const spec = e.intro ? EMPEROR_OPEN : EMPEROR_CLEAR;
+        e.timer = spec.telegraph;
+        e.stormInside = 0;
+        e.stormLeft = 0;
         planHooded(e);
         e.telegraph = {
             kind: "storm",
-            pts: jaggedLine(e.x, e.y, e.x + face.x * 176, e.y + face.y * 176),
+            pts: jaggedLine(e.x, e.y, e.x + face.x * spec.len, e.y + face.y * spec.len),
             color: PALETTE.lightning,
+            dur: spec.telegraph,
+            len: spec.len,
         };
         SoundSystem.bolt();
     }
@@ -251,8 +257,30 @@ function commitBossAttack(e, game) {
             finishClip: !opening && camp,
         });
     } else if (e.bossId === "hooded") {
+        const opening = !!e.intro;
+        e.intro = false;
+        e.clearGrace = EMPEROR_CLEAR.grace;
+        e.holdCap = !opening && e.hp <= EMPEROR_CLEAR.finishHp ? EMPEROR_CLEAR.finishHold : EMPEROR_CLEAR.hold;
+        e.farT = 0;
+        const triedLeave = !opening && (e.stormLeft || 0) >= EMPEROR_CLEAR.leave;
+        const camp = !opening && !triedLeave && (e.stormInside || 0) >= EMPEROR_CLEAR.lateEntry;
+        e.stormInside = 0;
+        e.stormLeft = 0;
+        e.holdBonus = 0;
         const power = e.nextPower || "lightning";
-        Combat.cast(game, e, power, { team: "foe", dmg: 1 });
+        // A later storm only chips a heart if they stood in the paint.
+        // Stepping off shoves. The opening bolt still answers for real.
+        if (opening || camp) {
+            Combat.cast(game, e, power, { team: "foe", dmg: 1 });
+        } else {
+            const away = normalize(player.x - e.x, player.y - e.y);
+            const gap = dist(e.x, e.y, player.x, player.y);
+            if ((away.x || away.y) && gap < EMPEROR_CLEAR.len) {
+                player.kx += away.x * 72;
+                player.ky += away.y * 72;
+            }
+            if (player.invuln < EMPEROR_CLEAR.shoveInvuln) player.invuln = EMPEROR_CLEAR.shoveInvuln;
+        }
         game.fx.push({ kind: "ring", x: e.x, y: e.y, r: 16, life: 0.24, color: PALETTE.lightning, grow: 90 });
     }
     e.telegraph = null;
@@ -302,6 +330,28 @@ function kyloPocket(e, player) {
     return { mx: 0, my: 0, speed: 0, gap: gap };
 }
 
+// Painted storm is the forward lane. Side steps leave it. Standing in it does not.
+function hoodedStormInside(e, player) {
+    const face = (e.telegraph && e.telegraph.dir) || e.facing || { x: 1, y: 0 };
+    const dx = player.x - e.x;
+    const dy = player.y - e.y;
+    const along = dx * face.x + dy * face.y;
+    const lat = Math.abs(dx * face.y - dy * face.x);
+    const len = (e.telegraph && e.telegraph.len) || EMPEROR_OPEN.len;
+    return along > -8 && along < len + player.r && lat < EMPEROR_CLEAR.lane + player.r;
+}
+
+// After a storm, settle into saber reach and stay. Do not drift back out of Lightning.
+function emperorPocket(e, player) {
+    const dir = normalize(player.x - e.x, player.y - e.y);
+    const gap = dist(e.x, e.y, player.x, player.y);
+    const pocket = EMPEROR_CLEAR.pocket;
+    if (!dir.x && !dir.y) return { mx: 0, my: 0, speed: 0, gap: gap };
+    if (gap > pocket + 8) return { mx: dir.x, my: dir.y, speed: EMPEROR_CLEAR.chase, gap: gap };
+    if (gap < pocket - 14) return { mx: -dir.x, my: -dir.y, speed: 36, gap: gap };
+    return { mx: 0, my: 0, speed: 0, gap: gap };
+}
+
 // After a blink, settle into saber reach and stay. Do not orbit back out.
 function shadowPocket(e, player) {
     const dir = normalize(player.x - e.x, player.y - e.y);
@@ -321,6 +371,11 @@ function updateBoss(e, game, dt) {
         e.ky *= damp;
     }
     if (e.bossId === "dark" && !e.intro) {
+        const damp = Math.max(0, 1 - dt * 12);
+        e.kx *= damp;
+        e.ky *= damp;
+    }
+    if (e.bossId === "hooded" && !e.intro) {
         const damp = Math.max(0, 1 - dt * 12);
         e.kx *= damp;
         e.ky *= damp;
@@ -361,9 +416,18 @@ function updateBoss(e, game, dt) {
                     e.holdBonus = Math.min(room, (e.holdBonus || 0) + stretch);
                 }
             }
+        } else if (e.bossId === "hooded") {
+            const stretch = EMPEROR_CLEAR.hitStretch;
+            const cap = EMPEROR_CLEAR.stretchCap;
+            if (e.state === "approach" && e.clearGrace <= 0) {
+                e.timer = Math.min(cap, (e.timer || 0) + stretch);
+            } else {
+                const room = Math.max(0, cap - EMPEROR_CLEAR.hold);
+                e.holdBonus = Math.min(room, (e.holdBonus || 0) + stretch);
+            }
         }
     }
-    if (e.bossId === "chrome" || e.bossId === "shadow" || e.bossId === "fallen" || e.bossId === "dark") e.seenHp = e.hp;
+    if (e.bossId === "chrome" || e.bossId === "shadow" || e.bossId === "fallen" || e.bossId === "dark" || e.bossId === "hooded") e.seenHp = e.hp;
     if (e.bossId === "dark" && e.intro && e.hp < e.maxHp && e.state !== "telegraph") {
         e.intro = false;
         e.clearGrace = Math.max(e.clearGrace || 0, VADER_CLEAR.grace);
@@ -397,6 +461,11 @@ function updateBoss(e, game, dt) {
                 mx = step.mx;
                 my = step.my;
                 speed = step.speed;
+            } else if (e.bossId === "hooded" && !e.intro) {
+                const step = emperorPocket(e, player);
+                mx = step.mx;
+                my = step.my;
+                speed = step.speed;
             }
             slide(e, (mx * speed + e.kx) * dt, (my * speed + e.ky) * dt, game);
             if (e.clearGrace <= 0 && e.bossId === "chrome" && !e.intro) {
@@ -414,6 +483,10 @@ function updateBoss(e, game, dt) {
             } else if (e.clearGrace <= 0 && e.bossId === "dark" && !e.intro) {
                 const base = e.holdCap || VADER_CLEAR.hold;
                 e.timer = Math.min(VADER_CLEAR.stretchCap, base + (e.holdBonus || 0));
+                e.holdBonus = 0;
+            } else if (e.clearGrace <= 0 && e.bossId === "hooded" && !e.intro) {
+                const base = e.holdCap || EMPEROR_CLEAR.hold;
+                e.timer = Math.min(EMPEROR_CLEAR.stretchCap, base + (e.holdBonus || 0));
                 e.holdBonus = 0;
             }
         } else {
@@ -444,6 +517,11 @@ function updateBoss(e, game, dt) {
                 mx = step.mx;
                 my = step.my;
                 speed = step.speed;
+            } else if (e.bossId === "hooded" && !e.intro) {
+                const step = emperorPocket(e, player);
+                mx = step.mx;
+                my = step.my;
+                speed = step.speed;
             } else if (e.bossId === "hooded") {
                 speed *= 0.35;
             } else if (e.bossId === "dark" && e.intro) {
@@ -462,7 +540,7 @@ function updateBoss(e, game, dt) {
             }
             const gapBefore = dist(e.x, e.y, player.x, player.y);
             slide(e, (mx * speed + e.kx) * dt, (my * speed + e.ky) * dt, game);
-            const reach = e.bossId === "hooded" ? 320 : e.bossId === "shadow" ? (e.intro ? INQUISITOR_OPEN.reach : INQUISITOR_CLEAR.reach) : e.bossId === "chrome" ? 200 : e.bossId === "dark" ? (e.intro ? VADER_OPEN.reach : VADER_CLEAR.reach) : e.bossId === "fallen" && !e.intro ? KYLO_CLEAR.reach : 148;
+            const reach = e.bossId === "hooded" ? (e.intro ? EMPEROR_OPEN.reach : EMPEROR_CLEAR.reach) : e.bossId === "shadow" ? (e.intro ? INQUISITOR_OPEN.reach : INQUISITOR_CLEAR.reach) : e.bossId === "chrome" ? 200 : e.bossId === "dark" ? (e.intro ? VADER_OPEN.reach : VADER_CLEAR.reach) : e.bossId === "fallen" && !e.intro ? KYLO_CLEAR.reach : 148;
             const gapNow = dist(e.x, e.y, player.x, player.y);
             let ready = false;
             if (e.bossId === "chrome" && !e.intro) {
@@ -502,6 +580,21 @@ function updateBoss(e, game, dt) {
                     else {
                         e.farT = (e.farT || 0) + dt;
                         ready = e.farT >= VADER_CLEAR.patience;
+                    }
+                } else {
+                    e.farT = 0;
+                    e.timer -= dt;
+                    ready = e.timer <= 0;
+                }
+            } else if (e.bossId === "hooded" && !e.intro) {
+                // Same patience as the gallery: a kid sprinting off should not
+                // skip the hold and eat the next storm before Lightning lands.
+                if (gapNow > EMPEROR_CLEAR.leash) {
+                    const closing = gapNow < gapBefore - 0.04;
+                    if (closing) e.farT = 0;
+                    else {
+                        e.farT = (e.farT || 0) + dt;
+                        ready = e.farT >= EMPEROR_CLEAR.patience;
                     }
                 } else {
                     e.farT = 0;
@@ -549,7 +642,14 @@ function updateBoss(e, game, dt) {
         }
         if (e.telegraph && e.telegraph.kind === "storm") {
             const face = e.facing || { x: 1, y: 0 };
-            e.telegraph.pts = jaggedLine(e.x, e.y, e.x + face.x * 176, e.y + face.y * 176);
+            const len = e.telegraph.len || EMPEROR_OPEN.len;
+            e.telegraph.pts = jaggedLine(e.x, e.y, e.x + face.x * len, e.y + face.y * len);
+            if (!e.intro) {
+                const elapsed = (e.telegraph.dur || EMPEROR_CLEAR.telegraph) - e.timer;
+                const inside = hoodedStormInside(e, player);
+                if (inside && elapsed >= EMPEROR_CLEAR.earlyGrace) e.stormInside = (e.stormInside || 0) + dt;
+                else if (!inside && elapsed >= 0.16) e.stormLeft = (e.stormLeft || 0) + dt;
+            }
         }
         if (e.bossId === "shadow" && e.telegraph && e.telegraph.kind === "ring") {
             const spec = e.intro ? INQUISITOR_OPEN : INQUISITOR_CLEAR;
@@ -682,7 +782,8 @@ function updateGuard(e, game, dt) {
     // holdFire: Docking Ring teach beat, no bolts until Force Push is learned.
     // trashClear + trashBreath: compactor pair cannot chain a heart.
     const trashHold = e.trashClear && game.trashBreath > 0;
-    if (!e.holdFire && !trashHold && e.timer <= 0 && d < range && !lessonSafe && !lineBlocked(sight, e.x, e.y, p.x, p.y)) {
+    const coreHold = emperorGuardsQuiet(game);
+    if (!e.holdFire && !trashHold && !coreHold && e.timer <= 0 && d < range && !lessonSafe && !lineBlocked(sight, e.x, e.y, p.x, p.y)) {
         e.timer = gap;
         const aim = Math.atan2(dir.y, dir.x) + (Math.random() - 0.5) * jitter;
         game.shots.push({
@@ -803,8 +904,8 @@ const Entities = {
             gap: stats.gap,
             facing: { x: 0, y: 1 },
             state: "approach",
-            timer: bossId === "chrome" ? PHASMA_OPEN.delay : bossId === "shadow" ? INQUISITOR_OPEN.delay : bossId === "fallen" ? KYLO_OPEN.delay : bossId === "dark" ? VADER_OPEN.delay : 0.7,
-            intro: bossId === "chrome" || bossId === "shadow" || bossId === "fallen" || bossId === "dark",
+            timer: bossId === "chrome" ? PHASMA_OPEN.delay : bossId === "shadow" ? INQUISITOR_OPEN.delay : bossId === "fallen" ? KYLO_OPEN.delay : bossId === "dark" ? VADER_OPEN.delay : EMPEROR_OPEN.delay,
+            intro: bossId === "chrome" || bossId === "shadow" || bossId === "fallen" || bossId === "dark" || bossId === "hooded",
             clearGrace: 0,
             hugT: 0,
             telegraph: null,
@@ -833,6 +934,7 @@ const Entities = {
             return;
         }
         if (game.trashBreath > 0) game.trashBreath = Math.max(0, game.trashBreath - dt);
+        if (game.coreBreath > 0) game.coreBreath = Math.max(0, game.coreBreath - dt);
         for (let i = 0; i < game.enemies.length; i++) {
             const e = game.enemies[i];
             if (!e.alive) continue;
