@@ -98,15 +98,21 @@ function hoodedPunish(e) {
     return true;
 }
 
+// The teen plate. This is the hug: storms and troopers stop spending hearts.
+function emperorFinishing(e) {
+    return !!(e && e.alive && e.bossId === "hooded" && !e.intro && e.hp > 0 && e.hp <= EMPEROR_CLEAR.finishHp);
+}
+
 function hoodedAim(game, source, maxDist) {
     let best = null;
-    let bestD = maxDist;
+    let bestD = Infinity;
     const list = game.enemies || [];
     for (let i = 0; i < list.length; i++) {
         const e = list[i];
         if (!hoodedPunish(e)) continue;
+        const cap = emperorFinishing(e) ? EMPEROR_CLEAR.finishAim : maxDist;
         const d = dist(source.x, source.y, e.x, e.y);
-        if (d < bestD) {
+        if (d <= cap && d < bestD) {
             best = e;
             bestD = d;
         }
@@ -135,6 +141,7 @@ function emperorGuardsQuiet(game) {
     for (let i = 0; i < list.length; i++) {
         const e = list[i];
         if (!e.alive || e.bossId !== "hooded" || e.intro) continue;
+        if (emperorFinishing(e)) return true;
         if (e.state === "approach" && !(e.clearGrace > 0)) return true;
     }
     return false;
@@ -143,12 +150,16 @@ function emperorGuardsQuiet(game) {
 const Combat = {
     hurtEnemy(game, ent, dmg) {
         if (!ent || !ent.alive) return;
-        // Last slice of the Emperor's plate. A messy Lightning or saber
-        // still finishes; a hit from full health stays a chip.
-        if (ent.bossId === "hooded" && ent.hp <= EMPEROR_CLEAR.finishHp && ent.hp > 0) {
-            dmg += EMPEROR_CLEAR.finishBonus;
-        }
+        // Teen plate onward. A messy Lightning or saber still finishes.
+        // A hit from full health stays a chip; the bonus waits for the hug.
+        const hug = emperorFinishing(ent);
+        if (hug) dmg += EMPEROR_CLEAR.finishBonus;
+        const prevHp = ent.hp;
         ent.hp -= dmg;
+        if (!hug && ent.bossId === "hooded" && !ent.intro && prevHp > EMPEROR_CLEAR.finishHp && ent.hp <= EMPEROR_CLEAR.finishHp && ent.hp > 0 && game.player) {
+            if (game.player.invuln < EMPEROR_CLEAR.finishBreath) game.player.invuln = EMPEROR_CLEAR.finishBreath;
+            game.coreBreath = Math.max(game.coreBreath || 0, EMPEROR_CLEAR.finishBreath);
+        }
         ent.hitFlash = 0.12;
         this.addDamageNumber(game, ent.x, ent.y, dmg, false);
         for (let n = 0; n < 3; n++) {
@@ -268,7 +279,7 @@ const Combat = {
             const d = Math.hypot(dx, dy) || 1;
             const open = shadowPunish(e) || fallenPunish(e) || darkPunish(e) || hoodedPunish(e);
             if (open) {
-                const pad = darkPunish(e) ? VADER_CLEAR.swingPad : hoodedPunish(e) ? EMPEROR_CLEAR.swingPad : 18;
+                const pad = darkPunish(e) ? VADER_CLEAR.swingPad : emperorFinishing(e) ? EMPEROR_CLEAR.finishPad : hoodedPunish(e) ? EMPEROR_CLEAR.swingPad : 18;
                 if (d >= range + e.r + pad) continue;
             } else if (d >= range + e.r * 0.5 + 6) continue;
             const dot = (dx / d) * p.facing.x + (dy / d) * p.facing.y;
@@ -442,7 +453,7 @@ const Combat = {
             const d = Math.hypot(dx, dy) || 1;
             const open = team !== "foe" && (shadowPunish(t) || fallenPunish(t) || darkPunish(t) || hoodedPunish(t));
             if (open) {
-                const pad = darkPunish(t) ? VADER_CLEAR.swingPad : hoodedPunish(t) ? EMPEROR_CLEAR.swingPad : 20;
+                const pad = darkPunish(t) ? VADER_CLEAR.swingPad : emperorFinishing(t) ? EMPEROR_CLEAR.finishPad : hoodedPunish(t) ? EMPEROR_CLEAR.swingPad : 20;
                 if (d > range + (t.r || 0) + pad) continue;
             } else if (d > range + (t.r || 0)) continue;
             const dot = (dx / d) * dir.x + (dy / d) * dir.y;

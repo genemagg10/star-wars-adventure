@@ -263,13 +263,15 @@ function commitBossAttack(e, game) {
         e.holdCap = !opening && e.hp <= EMPEROR_CLEAR.finishHp ? EMPEROR_CLEAR.finishHold : EMPEROR_CLEAR.hold;
         e.farT = 0;
         const triedLeave = !opening && (e.stormLeft || 0) >= EMPEROR_CLEAR.leave;
-        const camp = !opening && !triedLeave && (e.stormInside || 0) >= EMPEROR_CLEAR.lateEntry;
+        const hug = !opening && e.hp <= EMPEROR_CLEAR.finishHp;
+        const camp = !hug && !opening && !triedLeave && (e.stormInside || 0) >= EMPEROR_CLEAR.lateEntry;
         e.stormInside = 0;
         e.stormLeft = 0;
         e.holdBonus = 0;
         const power = e.nextPower || "lightning";
         // A later storm only chips a heart if they stood in the paint.
         // Stepping off shoves. The opening bolt still answers for real.
+        // In the teen hug the storm shoves even if they stood in it.
         if (opening || camp) {
             Combat.cast(game, e, power, { team: "foe", dmg: 1 });
         } else {
@@ -417,7 +419,7 @@ function updateBoss(e, game, dt) {
                 }
             }
         } else if (e.bossId === "hooded") {
-            const stretch = EMPEROR_CLEAR.hitStretch;
+            const stretch = e.hp <= EMPEROR_CLEAR.finishHp ? EMPEROR_CLEAR.finishStretch : EMPEROR_CLEAR.hitStretch;
             const cap = EMPEROR_CLEAR.stretchCap;
             if (e.state === "approach" && e.clearGrace <= 0) {
                 e.timer = Math.min(cap, (e.timer || 0) + stretch);
@@ -587,9 +589,14 @@ function updateBoss(e, game, dt) {
                     ready = e.timer <= 0;
                 }
             } else if (e.bossId === "hooded" && !e.intro) {
-                // Same patience as the gallery: a kid sprinting off should not
-                // skip the hold and eat the next storm before Lightning lands.
-                if (gapNow > EMPEROR_CLEAR.leash) {
+                // Teen hug: the storm does not come back. That return was the
+                // wall at 13 and 18. Above that, patience still fires a tell
+                // if they sprint off before a swing can land.
+                if (e.hp <= EMPEROR_CLEAR.finishHp) {
+                    e.farT = 0;
+                    e.timer = EMPEROR_CLEAR.finishHold;
+                    ready = false;
+                } else if (gapNow > EMPEROR_CLEAR.leash) {
                     const closing = gapNow < gapBefore - 0.04;
                     if (closing) e.farT = 0;
                     else {
