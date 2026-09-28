@@ -541,24 +541,8 @@ function drawFx(ctx, game) {
             ctx.strokeStyle = PALETTE.foam;
             ctx.lineWidth = 1;
             ctx.stroke();
-        } else if (f.kind === "push") {
-            const grow = 1 - Math.max(0, f.life) / 0.2;
-            const len = 16 + grow * (f.range || 80);
-            for (let n = -2; n <= 2; n++) {
-                const spread = n * 0.22;
-                const cs = Math.cos(spread);
-                const sn = Math.sin(spread);
-                const dx = f.dirx * cs - f.diry * sn;
-                const dy = f.dirx * sn + f.diry * cs;
-                ctx.strokeStyle = n === 0 ? PALETTE.foam : PALETTE.blue;
-                ctx.lineWidth = n === 0 ? 3 : 2;
-                ctx.beginPath();
-                ctx.moveTo(f.x - cam.x + dx * 8, f.y - cam.y + dy * 8);
-                ctx.lineTo(f.x - cam.x + dx * len, f.y - cam.y + dy * len);
-                ctx.stroke();
-            }
         } else if (f.kind === "ring") {
-            ctx.lineWidth = 2;
+            ctx.lineWidth = f.grow ? 3 : 2;
             ctx.beginPath();
             ctx.arc(f.x - cam.x, f.y - cam.y, f.r, 0, Math.PI * 2);
             ctx.stroke();

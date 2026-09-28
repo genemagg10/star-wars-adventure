@@ -61,8 +61,31 @@ const UI = {
             Game.quitToTitle();
         });
 
+        this.bindMute();
         this.buildHeroes();
         this.buildColors();
+    },
+
+    bindMute() {
+        const buttons = document.querySelectorAll(".js-mute");
+        for (let i = 0; i < buttons.length; i++) {
+            buttons[i].addEventListener("click", () => {
+                SoundSystem.unlock();
+                const next = !SoundSystem.muted;
+                SoundSystem.setMuted(next);
+                if (!next) SoundSystem.ui();
+                this.paintMute();
+            });
+        }
+    },
+
+    paintMute() {
+        const buttons = document.querySelectorAll(".js-mute");
+        const label = SoundSystem.muted ? "Muted" : "Sound on";
+        for (let i = 0; i < buttons.length; i++) {
+            buttons[i].textContent = label;
+            buttons[i].setAttribute("aria-pressed", SoundSystem.muted ? "true" : "false");
+        }
     },
 
     buildHeroes() {
@@ -134,6 +157,7 @@ const UI = {
         const cont = document.getElementById("btn-continue");
         if (SaveSystem.hasSave()) cont.hidden = false;
         else cont.hidden = true;
+        this.paintMute();
         this.show("screen-title");
     },
 
@@ -149,6 +173,7 @@ const UI = {
 
     showPause() {
         document.getElementById("pause-note").textContent = "";
+        this.paintMute();
         this.show("screen-pause");
     },
 
@@ -249,9 +274,11 @@ const UI = {
         ctx.fillStyle = PALETTE.foam;
         ctx.fillText(text, CANVAS_W / 2, 26);
 
+        this.drawPowerGems(ctx, game);
+
         if (game.toastT > 0 && game.toastText) {
             ctx.fillStyle = PALETTE.gold;
-            ctx.fillText(game.toastText, CANVAS_W / 2, 52);
+            ctx.fillText(game.toastText, CANVAS_W / 2, 74);
         }
 
         const gem = saberById(game.saber).color;
@@ -260,6 +287,43 @@ const UI = {
         diamond(ctx, gx, 26, 6, gem);
         if (!chase && game.companionJoined) {
             Sprites.draw(ctx, "grogu-face", CANVAS_W - 58, 26, false);
+        }
+    },
+
+    drawPowerGems(ctx, game) {
+        const colors = {
+            push: PALETTE.blue,
+            throw: PALETTE.purple,
+            lightning: PALETTE.lightning,
+            rock: PALETTE.gold,
+        };
+        const gap = 22;
+        const y = 50;
+        const start = CANVAS_W / 2 - ((POWER_SLOTS.length - 1) * gap) / 2;
+        for (let i = 0; i < POWER_SLOTS.length; i++) {
+            const id = POWER_SLOTS[i];
+            const x = start + i * gap;
+            const owned = game.owns(id);
+            const active = owned && game.activePower === id;
+            const r = active ? 8 : 5;
+            diamond(ctx, x, y, r + 2, PALETTE.ink);
+            diamond(ctx, x, y, r, owned ? colors[id] : PALETTE.panel);
+            if (!owned) diamond(ctx, x, y, 2, PALETTE.hull);
+            let cd = 0;
+            let max = POWER_COOLDOWN;
+            if (game.mode === "chase" && id === "push" && game.chase) {
+                cd = game.chase.pushCd || 0;
+                max = 1.3;
+            } else if (active && game.player) {
+                cd = game.player.powerCd || 0;
+            }
+            if (!owned || cd <= 0 || max <= 0) continue;
+            const ready = 1 - Math.min(1, cd / max);
+            ctx.strokeStyle = PALETTE.foam;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(x, y, r + 5, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * ready);
+            ctx.stroke();
         }
     },
 };

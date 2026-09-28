@@ -89,6 +89,7 @@ const POWERS = {
 };
 
 const POWER_SLOTS = ["push", "throw", "lightning", "rock"];
+const POWER_COOLDOWN = 1.15;
 
 const SAVE_PREFIX = "starStationAdventure.";
 

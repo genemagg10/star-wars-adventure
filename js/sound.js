@@ -4,6 +4,32 @@
 const SoundSystem = {
     ctx: null,
     master: null,
+    muted: false,
+    MUTE_KEY: SAVE_PREFIX + "mute",
+
+    loadMute() {
+        try {
+            this.muted = localStorage.getItem(this.MUTE_KEY) === "1";
+        } catch (err) {
+            this.muted = false;
+        }
+        this.applyMute();
+    },
+
+    setMuted(on) {
+        this.muted = !!on;
+        try {
+            localStorage.setItem(this.MUTE_KEY, this.muted ? "1" : "0");
+        } catch (err) {
+            // Private mode can block the preference. The toggle still applies this visit.
+        }
+        this.applyMute();
+    },
+
+    applyMute() {
+        if (!this.master) return;
+        this.master.gain.value = this.muted ? 0 : 0.18;
+    },
 
     unlock() {
         const AC = window.AudioContext || window.webkitAudioContext;
@@ -14,6 +40,7 @@ const SoundSystem = {
             this.master.gain.value = 0.18;
             this.master.connect(this.ctx.destination);
         }
+        this.applyMute();
         if (this.ctx.state === "suspended") {
             this.ctx.resume();
         }
@@ -25,7 +52,7 @@ const SoundSystem = {
     },
 
     toneAt(when, freq, dur, type, vol, slide) {
-        if (!this.ctx || !this.master) return;
+        if (this.muted || !this.ctx || !this.master) return;
         try {
             const osc = this.ctx.createOscillator();
             const gain = this.ctx.createGain();

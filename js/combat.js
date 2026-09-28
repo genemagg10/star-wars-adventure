@@ -24,7 +24,11 @@ const Combat = {
             ent.alive = false;
             SoundSystem.boom();
             this.burst(game, ent.x, ent.y, ent.kind === "boss" ? PALETTE.gold : PALETTE.foam);
-            if (ent.kind === "boss") game.onBossDown(ent.bossId);
+            if (ent.kind === "boss") {
+                game.hitStop = 0.08;
+                game.fx.push({ kind: "ring", x: ent.x, y: ent.y, r: 8, life: 0.32, color: PALETTE.gold, grow: 160 });
+                game.onBossDown(ent.bossId);
+            }
         }
     },
 
@@ -132,7 +136,7 @@ const Combat = {
         }
         const p = game.player;
         if (p.powerCd > 0 || p.hp <= 0) return;
-        p.powerCd = 1.15;
+        p.powerCd = POWER_COOLDOWN;
         this.cast(game, p, id, { weak: false, team: "player" });
         game.lastPower = id;
         game.notePowerUsed(id);
@@ -174,16 +178,10 @@ const Combat = {
                 t.ky += away.y * 260;
             }
         }
-        game.fx.push({
-            kind: "push",
-            x: source.x,
-            y: source.y,
-            dirx: dir.x || 1,
-            diry: dir.y || 0,
-            range: range,
-            life: 0.2,
-            color: PALETTE.blue,
-        });
+        const px = source.x + (dir.x || 0) * 34;
+        const py = source.y + (dir.y || 0) * 34;
+        game.fx.push({ kind: "ring", x: px, y: py, r: 14, life: 0.28, color: PALETTE.blue, grow: 160 });
+        game.fx.push({ kind: "ring", x: px, y: py, r: 6, life: 0.22, color: PALETTE.foam, grow: 110 });
     },
 
     saberThrow(game, source, dmg, team, weak) {
@@ -376,7 +374,7 @@ const Combat = {
                 f.x += f.vx * dt;
                 f.y += f.vy * dt;
             }
-            if (f.kind === "ring") f.r += dt * 70;
+            if (f.kind === "ring") f.r += dt * (f.grow || 70);
         }
         game.fx = game.fx.filter((f) => f.life > 0);
     },

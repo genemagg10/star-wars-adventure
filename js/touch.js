@@ -6,6 +6,9 @@ const TouchControls = {
     holding: { attack: false, power: false, interact: false },
     edges: { attack: false, power: false, interact: false },
     chipSig: "",
+    powerTimer: 0,
+    powerLong: false,
+    powerPointer: null,
 
     init() {
         const stick = document.getElementById("stick");
@@ -67,8 +70,8 @@ const TouchControls = {
             btn.addEventListener("pointercancel", up);
         };
         bind("btn-attack", "attack");
-        bind("btn-power", "power");
         bind("btn-interact", "interact");
+        this.bindPower();
 
         const pause = document.getElementById("btn-pause-touch");
         if (pause) {
@@ -91,6 +94,49 @@ const TouchControls = {
         }
     },
 
+    bindPower() {
+        const btn = document.getElementById("btn-power");
+        if (!btn) return;
+        const holdMs = 420;
+        const clear = () => {
+            if (this.powerTimer) {
+                clearTimeout(this.powerTimer);
+                this.powerTimer = 0;
+            }
+        };
+        btn.addEventListener("pointerdown", (e) => {
+            e.preventDefault();
+            btn.setPointerCapture(e.pointerId);
+            this.holding.power = true;
+            this.powerLong = false;
+            this.powerPointer = e.pointerId;
+            clear();
+            this.powerTimer = setTimeout(() => {
+                this.powerTimer = 0;
+                this.powerLong = true;
+                this.holding.power = false;
+                if (!Game || Game.frozen || Game.mode !== "play") return;
+                SoundSystem.unlock();
+                Game.cyclePower();
+                this.sync(Game);
+            }, holdMs);
+        });
+        btn.addEventListener("pointerup", (e) => {
+            if (this.powerPointer != null && e.pointerId !== this.powerPointer) return;
+            clear();
+            this.holding.power = false;
+            if (!this.powerLong) this.edges.power = true;
+            this.powerLong = false;
+            this.powerPointer = null;
+        });
+        btn.addEventListener("pointercancel", () => {
+            clear();
+            this.holding.power = false;
+            this.powerLong = false;
+            this.powerPointer = null;
+        });
+    },
+
     buildChips() {
         const box = document.getElementById("power-chips");
         if (!box) return;
@@ -110,7 +156,10 @@ const TouchControls = {
                 e.stopPropagation();
                 SoundSystem.unlock();
                 if (!Game || Game.mode !== "play" || Game.frozen) return;
-                if (!Game.owns(id)) return;
+                if (!Game.owns(id)) {
+                    Game.toast(POWERS[id].name + " is still locked");
+                    return;
+                }
                 Game.activePower = id;
                 Game.toast(POWERS[id].name);
                 SoundSystem.ui();
@@ -154,16 +203,18 @@ const TouchControls = {
         const box = document.getElementById("power-chips");
         if (!box) return;
         const chips = box.querySelectorAll(".power-chip");
-        let any = false;
+        const showStrip = game.mode === "play";
+        box.dataset.empty = showStrip ? "0" : "1";
         for (let i = 0; i < chips.length; i++) {
             const chip = chips[i];
             const id = chip.dataset.power;
-            const owned = game.mode === "play" && game.owns(id);
-            chip.hidden = !owned;
-            chip.classList.toggle("is-on", owned && game.activePower === id);
-            if (owned) any = true;
+            const owned = game.owns(id);
+            chip.hidden = false;
+            chip.classList.toggle("is-locked", !owned);
+            chip.classList.toggle("is-on", showStrip && owned && game.activePower === id);
+            const state = owned ? "unlocked" : "locked";
+            chip.setAttribute("aria-label", POWERS[id].slot + " " + POWERS[id].name + ", " + state);
         }
-        box.dataset.empty = any ? "0" : "1";
     },
 
     takeEdges() {

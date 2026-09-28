@@ -6,13 +6,13 @@
     <meta name="theme-color" content="#0B1020">
     <title>Star Wars Adventure — by Jordan</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect fill='%230B1020' width='16' height='16'/%3E%3Cpath fill='%23FFC857' d='M8 1 L15 8 L8 15 L1 8 Z'/%3E%3C/svg%3E">
-    <link rel="stylesheet" href="css/style.css?v=20260928-wave1">
+    <link rel="stylesheet" href="css/style.css?v=20260928-wave1b">
 </head>
 <body>
     <div id="rotate-gate">
         <p class="kicker">Star Wars Adventure</p>
         <h2>Turn sideways</h2>
-        <p>The stick, power chips, Pause, and the action buttons need a landscape screen.</p>
+        <p>The stick, the four power gems, Pause, and the action buttons need a landscape screen.</p>
     </div>
 
     <div id="frame">
@@ -28,6 +28,7 @@
                     <button type="button" id="btn-begin">Begin</button>
                     <button type="button" id="btn-continue" hidden>Continue</button>
                     <button type="button" id="btn-controls">Controls</button>
+                    <button type="button" class="js-mute" aria-pressed="false">Sound on</button>
                 </div>
             </div>
         </section>
@@ -67,7 +68,7 @@
                     <li><kbd>E</kbd> Interact</li>
                     <li><kbd>Esc</kbd> Pause</li>
                 </ul>
-                <p class="lede">On a phone, turn sideways. The stick moves you. Attack swings. Power uses the selected Force power. Chips 1–4 pick an unlocked power, and the newest one selects itself. Interact lights up beside a door, chest, or hatch. Pause opens the menu.</p>
+                <p class="lede">On a phone, turn sideways. The stick moves you. Attack swings. A short tap on Power uses the lit Force power. Hold Power to switch to the next unlocked power, or tap a lit gem 1–4. Dark gems are locked. The newest power still selects itself when you learn it. Interact lights up beside a door, chest, or hatch. Pause opens the menu. Mute lives on the title and on this pause menu.</p>
                 <div class="actions">
                     <button type="button" id="controls-back">Back</button>
                 </div>
@@ -82,6 +83,7 @@
                 <div class="actions">
                     <button type="button" id="btn-resume">Resume</button>
                     <button type="button" id="btn-save">Save</button>
+                    <button type="button" class="js-mute" aria-pressed="false">Sound on</button>
                     <button type="button" id="btn-pause-controls">Controls</button>
                     <button type="button" id="btn-quit">Quit to title</button>
                 </div>
@@ -111,16 +113,16 @@
         </div>
     </div>
 
-    <script src="js/constants.js?v=20260928-wave1"></script>
-    <script src="js/utils.js?v=20260928-wave1"></script>
-    <script src="js/sprites.js?v=20260928-wave1"></script>
-    <script src="js/sound.js?v=20260928-wave1"></script>
-    <script src="js/touch.js?v=20260928-wave1"></script>
-    <script src="js/save.js?v=20260928-wave1"></script>
-    <script src="js/combat.js?v=20260928-wave1"></script>
-    <script src="js/entities.js?v=20260928-wave1"></script>
-    <script src="js/world.js?v=20260928-wave1"></script>
-    <script src="js/ui.js?v=20260928-wave1"></script>
-    <script src="js/game.js?v=20260928-wave1"></script>
+    <script src="js/constants.js?v=20260928-wave1b"></script>
+    <script src="js/utils.js?v=20260928-wave1b"></script>
+    <script src="js/sprites.js?v=20260928-wave1b"></script>
+    <script src="js/sound.js?v=20260928-wave1b"></script>
+    <script src="js/touch.js?v=20260928-wave1b"></script>
+    <script src="js/save.js?v=20260928-wave1b"></script>
+    <script src="js/combat.js?v=20260928-wave1b"></script>
+    <script src="js/entities.js?v=20260928-wave1b"></script>
+    <script src="js/world.js?v=20260928-wave1b"></script>
+    <script src="js/ui.js?v=20260928-wave1b"></script>
+    <script src="js/game.js?v=20260928-wave1b"></script>
 </body>
 </html>

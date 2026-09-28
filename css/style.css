@@ -298,10 +298,16 @@ body.playing.has-coarse.hud-lock #touch { display: none; }
 .power-chip[data-power="lightning"] { border-color: var(--lightning); }
 .power-chip[data-power="rock"] { border-color: var(--gold); }
 
+.power-chip.is-locked {
+    opacity: 0.35;
+    border-color: var(--panel);
+}
+
 .power-chip.is-on {
     background: var(--gold);
     color: var(--ink);
     border-color: var(--gold);
+    opacity: 1;
 }
 
 #stick {

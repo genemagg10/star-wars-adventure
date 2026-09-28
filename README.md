@@ -31,10 +31,13 @@ Open `http://localhost:8080`. A local server is the reliable way to run it. The 
 
 Turn the phone sideways. A stick sits on the left. Attack and Power sit on the right.
 
-- Chips **1–4** appear for each unlocked Force power. The newest power selects itself.
+- A strip of **four gems** stays on screen while you walk a deck. Only powers you own light up. Dark gems are locked.
+- Tap a lit gem **1–4** to select that power. Hold **Power** to cycle to the next unlocked power. A short tap on **Power** uses the lit one. The newest power still selects itself when you learn it.
+- The same four gems sit on the canvas under the objective. The lit gem grows, and a ring fills in while that power cools down.
 - **Interact** stays dim until you stand beside a door, chest, hatch, or exit. It then names that thing (Chest, Hatch, Leave).
 - **Pause** is on the screen. Phone play does not need Esc.
-- In a chase, Attack fires the X-wing. Power, once you have Force Push, shoves nearby TIE shots away.
+- **Mute** is on the title screen and in the pause menu. The choice is stored beside the save as `starStationAdventure.mute`. The phone stays quiet until the first tap. Begin already unlocks sound; Mute is how you turn it back off.
+- In the Hangar Run, Attack fires the X-wing. Power, once you have Force Push, shoves nearby TIE shots away.
 
 Lightsaber colors are blue, green, purple, yellow, white, and orange. Hearts are green. The objective chip is one line. The saber gem sits at the right, and Grogu's face joins it after Darth Vader.
 
@@ -43,14 +46,14 @@ Lightsaber colors are blue, green, purple, yellow, white, and orange. Hearts are
 1. Title, then pick Luke Skywalker, Rey, or Chewbacca.
 2. Pick a lightsaber color.
 3. Docking Ring — stormtroopers.
-4. Phasma Hangar — defeat Captain Phasma to learn **Force Push**. The Hangar Run is a real chase: steer an X-wing, shoot TIE fighters, and break through.
-5. Inquisitor Conduit — defeat the Inquisitor to learn **Saber Throw**. The Conduit Run is a second chase, with debris and TIE fighters, and it has a clear start and finish.
+4. Phasma Hangar — defeat Captain Phasma to learn **Force Push**. The Hangar Run is the one playable chase: steer an X-wing, shoot TIE fighters, and break through.
+5. Inquisitor Conduit — defeat the Inquisitor to learn **Saber Throw**. The later chase card stays sealed. The TIE fighters do not launch.
 6. Throne Gallery — defeat Darth Vader. **Grogu** (Baby Yoda) joins. No Force power from this fight.
 7. Trash Compactor — open the salvage chest to learn **Rock Toss**. A side hatch hides a Chewbacca-bot sticker.
 8. Kylo Deck — defeat Kylo Ren to learn **Lightning**.
 9. Core Gate — the Emperor stays sealed until you hold all four Force powers. Win, and the card reads **Part Two coming soon!**
 
-Both chase lanes are playable. You can skip either one and stay on the Death Star. Each lane ends when the timer clears or the X-wing is shot down.
+Only the Phasma Hangar chase is playable. You can skip it and stay on the Death Star. It ends when the timer clears or the X-wing is shot down. Later “lane sealed” cards stay sealed.
 
 Force power keys stay fixed:
 
@@ -63,7 +66,7 @@ Rock Toss is the mid-game salvage chest in the Trash Compactor, after Darth Vade
 
 Grogu has no heart of their own. They follow and, on a long cooldown, echo your last Force power weakly. The Chewbacca-bot behind the trash hatch is a sticker achievement only.
 
-Pause → Save stores progress in `localStorage` under `starStationAdventure.save.slot1`. Continue returns you to the current deck entrance with Force powers, Grogu, and achievements kept. Foes on that deck respawn if the boss is still standing.
+The game writes `localStorage` under `starStationAdventure.save.slot1` when you enter a deck and again after a reward, and Pause → Save does the same. Continue returns you to that deck entrance with Force powers, Grogu, and achievements kept. Foes on that deck respawn if the boss is still standing. The hatch and your exact spot in a fight are not stored. Mute is a separate key, `starStationAdventure.mute`, beside the save.
 
 ## Heroes
 
