@@ -22,11 +22,14 @@ html, body {
     color: var(--foam);
     font-family: "Avenir Next", "Segoe UI", sans-serif;
     overflow: hidden;
+    /* manipulation disables double-tap zoom and still allows a menu to pan */
+    touch-action: manipulation;
 }
 
 #frame {
     position: fixed;
     inset: 0;
+    touch-action: manipulation;
 }
 
 #gameCanvas {
@@ -36,7 +39,10 @@ html, body {
     image-rendering: pixelated;
     image-rendering: crisp-edges;
     background: var(--void);
-    touch-action: none;
+    touch-action: manipulation;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
 }
 
 .screen {
@@ -48,6 +54,7 @@ html, body {
     padding: 16px;
     overflow: auto;
     background: rgba(11, 16, 32, 0.28);
+    touch-action: manipulation;
 }
 
 .screen.hidden { display: none; }
@@ -197,6 +204,10 @@ button {
     padding: 10px 14px;
     min-height: 44px;
     cursor: pointer;
+    touch-action: manipulation;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
 }
 
 button:hover, button:focus-visible {
@@ -390,6 +401,10 @@ body.crawling #touch { display: none; }
     inset: 0;
     pointer-events: none;
     z-index: 3;
+    touch-action: manipulation;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
 }
 
 body.playing.touch #touch,
@@ -409,6 +424,7 @@ body.playing.has-coarse.hud-lock #touch { display: none; }
     border-color: var(--foam);
     background: rgba(11, 16, 32, 0.78);
     z-index: 4;
+    touch-action: manipulation;
 }
 
 #power-chips {
@@ -419,6 +435,7 @@ body.playing.has-coarse.hud-lock #touch { display: none; }
     display: flex;
     gap: 8px;
     justify-content: flex-end;
+    touch-action: manipulation;
 }
 
 #power-chips[data-empty="1"] { display: none; }
@@ -435,7 +452,7 @@ body.playing.has-coarse.hud-lock #touch { display: none; }
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    touch-action: none;
+    touch-action: manipulation;
 }
 
 .power-chip b { font-size: 14px; }
@@ -467,7 +484,7 @@ body.playing.has-coarse.hud-lock #touch { display: none; }
     border-radius: 50%;
     border: 2px solid rgba(232, 240, 255, 0.45);
     background: rgba(11, 16, 32, 0.35);
-    touch-action: none;
+    touch-action: manipulation;
 }
 
 #nub {
@@ -489,6 +506,7 @@ body.playing.has-coarse.hud-lock #touch { display: none; }
     display: flex;
     gap: 10px;
     align-items: flex-end;
+    touch-action: manipulation;
 }
 
 #touch-actions button {
@@ -499,7 +517,7 @@ body.playing.has-coarse.hud-lock #touch { display: none; }
     font-size: 26px;
     letter-spacing: 0;
     text-transform: none;
-    touch-action: none;
+    touch-action: manipulation;
 }
 
 #btn-attack { border-color: var(--danger); }
@@ -548,6 +566,7 @@ body.playing.has-coarse.hud-lock #touch { display: none; }
     color: var(--foam);
     padding: 32px 20px;
     text-align: left;
+    touch-action: manipulation;
 }
 
 @media (orientation: portrait) and (max-width: 900px) {
