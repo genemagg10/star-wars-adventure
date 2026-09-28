@@ -322,17 +322,17 @@ const EMPEROR_OPEN = {
     reach: 320,
 };
 
-// Finish window. The old loop was a storm every couple of seconds from
-// across the room, and the plate stuck at 37 of 42: one Lightning landed,
-// then the mirrored bolt and the two troopers spent the hearts before a
-// second swing could. After that first storm he steps into saber reach and
-// holds. A saber or Force hit stretches the hold, and it connects even if
-// the stick still points at the dodge. Stepping off a later storm shoves,
-// with a short breather, and does not take a heart. Standing in the paint
-// the whole time still takes one, then a longer breather, and the troopers
-// hold fire so that heart cannot chain. Once the plate is at 10 or below,
-// each hit bites harder and the next quiet is longer, so the last hearts
-// can be spent. Lightning stays a chip from full health.
+// Finish window. The first pass still died in the teens: best plate 13 of
+// 42, deaths at 18, and sometimes the old 37 after one Lightning. The deep
+// quiet only opened at 10, so the storm and the troopers landed before it.
+// After the opening storm he steps into saber reach and holds. A saber or
+// Force hit stretches that hold, and it connects even if the stick still
+// points at the dodge. Stepping off a later storm shoves and does not take
+// a heart. Standing in the paint still takes one, then a breather, and the
+// troopers hold fire so that heart cannot chain. Once the plate is at 18
+// or below — the band that was still a wall — the hug stays. Storms shove,
+// troopers hold fire, and each hit bites harder until the plate is spent.
+// Lightning from full health stays a chip.
 const EMPEROR_CLEAR = {
     telegraph: 1.5,
     len: 176,
@@ -341,21 +341,25 @@ const EMPEROR_CLEAR = {
     pocket: 42,
     leash: 118,
     patience: 4.8,
-    hold: 13,
-    finishHp: 10,
-    finishHold: 18,
-    finishBonus: 2,
-    hitStretch: 2.2,
-    stretchCap: 22,
-    chase: 200,
+    hold: 16,
+    finishHp: 18,
+    finishHold: 30,
+    finishBonus: 4,
+    finishStretch: 4.5,
+    finishBreath: 4.2,
+    hitStretch: 2.6,
+    stretchCap: 26,
+    chase: 220,
     leave: 0.2,
     lateEntry: 0.45,
     earlyGrace: 0.22,
     shoveInvuln: 1.8,
     breath: 3.4,
     reach: 300,
-    aim: 200,
-    swingPad: 24,
+    aim: 250,
+    finishAim: 300,
+    swingPad: 36,
+    finishPad: 64,
 };
 
 const ACHIEVEMENTS = {
