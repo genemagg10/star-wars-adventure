@@ -61,8 +61,31 @@ const UI = {
             Game.quitToTitle();
         });
 
+        this.bindMute();
         this.buildHeroes();
         this.buildColors();
+    },
+
+    bindMute() {
+        const buttons = document.querySelectorAll(".js-mute");
+        for (let i = 0; i < buttons.length; i++) {
+            buttons[i].addEventListener("click", () => {
+                SoundSystem.unlock();
+                const next = !SoundSystem.muted;
+                SoundSystem.setMuted(next);
+                if (!next) SoundSystem.ui();
+                this.paintMute();
+            });
+        }
+    },
+
+    paintMute() {
+        const buttons = document.querySelectorAll(".js-mute");
+        const label = SoundSystem.muted ? "Muted" : "Sound on";
+        for (let i = 0; i < buttons.length; i++) {
+            buttons[i].textContent = label;
+            buttons[i].setAttribute("aria-pressed", SoundSystem.muted ? "true" : "false");
+        }
     },
 
     buildHeroes() {
@@ -134,6 +157,7 @@ const UI = {
         const cont = document.getElementById("btn-continue");
         if (SaveSystem.hasSave()) cont.hidden = false;
         else cont.hidden = true;
+        this.paintMute();
         this.show("screen-title");
     },
 
@@ -149,6 +173,7 @@ const UI = {
 
     showPause() {
         document.getElementById("pause-note").textContent = "";
+        this.paintMute();
         this.show("screen-pause");
     },
 
@@ -160,6 +185,12 @@ const UI = {
         document.getElementById("card-kicker").textContent = opts.kicker || "";
         document.getElementById("card-title").textContent = opts.title || "";
         document.getElementById("card-body").textContent = opts.body || "";
+        const panel = document.querySelector("#screen-card .panel");
+        if (panel) {
+            panel.classList.toggle("loud", !!opts.loud);
+            panel.classList.toggle("power-drop", !!opts.powerDrop);
+        }
+        this.paintCelebrate(opts);
         const line = document.getElementById("card-line");
         if (opts.line) {
             line.textContent = opts.line;
@@ -197,6 +228,46 @@ const UI = {
         this.show("screen-card");
     },
 
+    paintCelebrate(opts) {
+        const box = document.getElementById("card-celebrate");
+        if (!box) return;
+        const cele = opts && opts.celebrate;
+        if (!cele) {
+            box.classList.add("hidden");
+            return;
+        }
+        box.classList.remove("hidden");
+        document.getElementById("card-who").textContent = cele.hero;
+        const saber = document.getElementById("card-saber");
+        saber.textContent = cele.saber + " lightsaber";
+        saber.style.color = cele.saberColor || PALETTE.gold;
+        const heroCanvas = document.getElementById("card-hero");
+        const g = heroCanvas.getContext("2d");
+        g.imageSmoothingEnabled = false;
+        g.clearRect(0, 0, 64, 64);
+        const sprite = Sprites.cache[cele.heroId + "-down"];
+        if (sprite) g.drawImage(sprite, 0, 0, 64, 64);
+        const grogu = document.getElementById("card-grogu");
+        grogu.classList.toggle("hidden", !cele.grogu);
+        grogu.classList.toggle("hop", !!cele.grogu);
+        if (cele.grogu) {
+            const gg = grogu.getContext("2d");
+            gg.imageSmoothingEnabled = false;
+            gg.clearRect(0, 0, 48, 48);
+            const face = Sprites.cache["little"] || Sprites.cache["grogu-face"];
+            if (face) gg.drawImage(face, 0, 0, 48, 48);
+        }
+        const sparks = document.getElementById("card-sparks");
+        sparks.innerHTML = "";
+        for (let i = 0; i < 14; i++) {
+            const bit = document.createElement("i");
+            bit.style.left = (8 + Math.random() * 84) + "%";
+            bit.style.animationDelay = (Math.random() * 0.28) + "s";
+            bit.style.background = i % 3 === 0 ? (cele.saberColor || PALETTE.gold) : PALETTE.gold;
+            sparks.appendChild(bit);
+        }
+    },
+
     hideCard() {
         this.cardOpen = false;
         this.primary = null;
@@ -211,16 +282,31 @@ const UI = {
         const chase = game.mode === "chase";
         const hearts = chase ? game.chase.hp : game.player.hp;
         const max = chase ? game.chase.maxHp : game.player.maxHp;
+        const touch = document.body.classList.contains("touch") || document.body.classList.contains("has-coarse");
+        let heartX = 20;
+        if (touch) {
+            const cssW = game.cssW || CANVAS_W;
+            heartX = Math.max(108, ((96 / Math.max(1, cssW)) * CANVAS_W) + 10);
+        }
         for (let i = 0; i < max; i++) {
-            Sprites.draw(ctx, i < hearts ? "heart" : "heart-empty", 20 + i * 18, 24, false);
+            const hx = heartX + i * 20;
+            if (i < hearts) {
+                ctx.save();
+                ctx.fillStyle = PALETTE.green;
+                ctx.globalAlpha = 0.5;
+                ctx.beginPath();
+                ctx.arc(hx, 24, 11, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+            Sprites.draw(ctx, i < hearts ? "heart" : "heart-empty", hx, 24, false);
         }
 
         let text = "Death Star";
         if (chase) {
             const left = Math.max(0, Math.ceil(game.chase.duration - game.chase.t));
-            text = "Survive the chase lane · " + left + "s";
-        } else if (game.bannerT > 0 && game.sector) {
-            text = game.sector.name;
+            const goal = game.chase.objective || "Fly the lane";
+            text = goal + " · " + left + "s";
         } else if (game.objective) {
             text = game.objective;
         }
@@ -228,18 +314,23 @@ const UI = {
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         const pad = 28;
-        const w = Math.min(460, Math.ceil(ctx.measureText(text).width + pad));
+        const w = Math.min(420, Math.ceil(ctx.measureText(text).width + pad));
         const x = Math.round(CANVAS_W / 2 - w / 2);
+        const accent = chase && game.chase && game.chase.lane
+            ? game.chase.lane.accent
+            : (game.sector && game.sector.accent) || PALETTE.panel;
         ctx.fillStyle = PALETTE.hull;
         ctx.fillRect(x, 12, w, 26);
-        ctx.strokeStyle = PALETTE.panel;
+        ctx.strokeStyle = accent;
         ctx.strokeRect(x + 0.5, 12.5, w - 1, 25);
         ctx.fillStyle = PALETTE.foam;
         ctx.fillText(text, CANVAS_W / 2, 26);
 
+        this.drawPowerGems(ctx, game);
+
         if (game.toastT > 0 && game.toastText) {
             ctx.fillStyle = PALETTE.gold;
-            ctx.fillText(game.toastText, CANVAS_W / 2, 52);
+            ctx.fillText(game.toastText, CANVAS_W / 2, CANVAS_H - 36);
         }
 
         const gem = saberById(game.saber).color;
@@ -247,7 +338,45 @@ const UI = {
         diamond(ctx, gx, 26, 9, PALETTE.ink);
         diamond(ctx, gx, 26, 6, gem);
         if (!chase && game.companionJoined) {
-            Sprites.draw(ctx, "little", CANVAS_W - 64, 28, false);
+            Sprites.draw(ctx, "grogu-face", CANVAS_W - 58, 26, false);
+        }
+    },
+
+    drawPowerGems(ctx, game) {
+        const colors = {
+            push: PALETTE.blue,
+            throw: PALETTE.purple,
+            lightning: PALETTE.lightning,
+            rock: PALETTE.gold,
+        };
+        const gap = 22;
+        const y = 64;
+        const start = CANVAS_W / 2 - ((POWER_SLOTS.length - 1) * gap) / 2;
+        for (let i = 0; i < POWER_SLOTS.length; i++) {
+            const id = POWER_SLOTS[i];
+            const x = start + i * gap;
+            const owned = game.owns(id);
+            const active = owned && game.activePower === id;
+            const r = active ? 8 : 5;
+            diamond(ctx, x, y, r + 2, PALETTE.ink);
+            diamond(ctx, x, y, r, owned ? colors[id] : PALETTE.panel);
+            if (!owned) diamond(ctx, x, y, 2, PALETTE.hull);
+            let cd = 0;
+            let max = POWER_COOLDOWN;
+            if (game.mode === "chase" && id === "push" && game.chase) {
+                cd = game.chase.pushCd || 0;
+                max = 1.3;
+            } else if (active && game.player) {
+                cd = game.player.powerCd || 0;
+            }
+            if (!owned || cd <= 0 || max <= 0) continue;
+            const ready = 1 - Math.min(1, cd / max);
+            const barW = 14;
+            const barY = y + r + 4;
+            ctx.fillStyle = PALETTE.ink;
+            ctx.fillRect(x - barW / 2, barY, barW, 3);
+            ctx.fillStyle = PALETTE.foam;
+            ctx.fillRect(x - barW / 2, barY, barW * ready, 3);
         }
     },
 };

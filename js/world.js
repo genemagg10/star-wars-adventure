@@ -29,16 +29,21 @@ function deckDock() {
     const g = makeGrid(54, 36);
     [[8, 8], [8, 24], [42, 8], [42, 24], [22, 16], [32, 16]].forEach((p) => fillCell(g, p[0], p[1], 2, 2, "+"));
     putCell(g, 27, 30, "P");
+    putCell(g, 27, 26, "L");
     putCell(g, 27, 2, "E");
     putCell(g, 16, 18, "G");
     putCell(g, 38, 20, "G");
+    placeToys(g, 14, 12, 40, 14, 24, 22, 6);
     return g;
 }
 
 function deckHangar() {
     const g = makeGrid(58, 38);
     for (let y = 6; y < 34; y += 8) {
-        for (let x = 3; x < 55; x++) if (g[y][x] === ".") g[y][x] = "=";
+        for (let x = 3; x < 55; x++) {
+            if (g[y][x] === ".") g[y][x] = "=";
+            if (g[y + 1] && g[y + 1][x] === ".") g[y + 1][x] = "=";
+        }
     }
     fillCell(g, 8, 12, 4, 2, "#");
     fillCell(g, 46, 12, 4, 2, "#");
@@ -50,6 +55,7 @@ function deckHangar() {
     putCell(g, 18, 21, "G");
     putCell(g, 40, 21, "G");
     putCell(g, 29, 25, "G");
+    placeToys(g, 12, 10, 48, 18, 0, 0, 0);
     return g;
 }
 
@@ -66,6 +72,7 @@ function deckConduit() {
     putCell(g, 28, 14, "G");
     putCell(g, 28, 24, "G");
     putCell(g, 48, 24, "G");
+    placeToys(g, 8, 8, 26, 8, 22, 20, 6);
     return g;
 }
 
@@ -88,6 +95,7 @@ function deckTrash() {
     putCell(g, 42, 2, "E");
     putCell(g, 20, 12, "G");
     putCell(g, 44, 16, "G");
+    placeToys(g, 22, 8, 36, 8, 34, 18, 5);
     return g;
 }
 
@@ -107,6 +115,7 @@ function deckGallery() {
     putCell(g, 28, 12, "B");
     putCell(g, 18, 22, "G");
     putCell(g, 38, 22, "G");
+    placeToys(g, 12, 12, 44, 12, 22, 20, 8);
     return g;
 }
 
@@ -121,6 +130,7 @@ function deckFallen() {
     putCell(g, 27, 16, "B");
     putCell(g, 18, 16, "G");
     putCell(g, 36, 16, "G");
+    placeToys(g, 16, 8, 36, 8, 20, 20, 8);
     return g;
 }
 
@@ -133,7 +143,16 @@ function deckCore() {
     putCell(g, 26, 15, "B");
     putCell(g, 18, 21, "G");
     putCell(g, 34, 21, "G");
+    placeToys(g, 16, 12, 34, 14, 23, 18, 6);
     return g;
+}
+
+function placeToys(g, ox, oy, ix, iy, sx, sy, len) {
+    putCell(g, ox, oy, "O");
+    putCell(g, ix, iy, "I");
+    for (let i = 0; i < len; i++) {
+        if (g[sy] && g[sy][sx + i] === ".") g[sy][sx + i] = "=";
+    }
 }
 
 const FLOOR_CYCLE = {
@@ -148,13 +167,13 @@ const FLOOR_CYCLE = {
 
 const World = {
     sectors: [
-        { id: "dock", name: "Docking Ring", bossId: null, needsChest: false, build: deckDock },
-        { id: "hangar", name: "Phasma Hangar", bossId: "chrome", needsChest: false, build: deckHangar },
-        { id: "conduit", name: "Inquisitor Conduit", bossId: "shadow", needsChest: false, build: deckConduit },
-        { id: "gallery", name: "Throne Gallery", bossId: "dark", needsChest: false, build: deckGallery },
-        { id: "trash", name: "Trash Compactor", bossId: null, needsChest: true, build: deckTrash },
-        { id: "fallen", name: "Kylo Deck", bossId: "fallen", needsChest: false, build: deckFallen },
-        { id: "core", name: "Core Gate", bossId: "hooded", needsChest: false, build: deckCore },
+        { id: "dock", name: "Docking Ring", bossId: null, needsChest: false, build: deckDock, clearGoal: "Clear the ring", exitGoal: "Reach the hangar", accent: PALETTE.blue },
+        { id: "hangar", name: "Phasma Hangar", bossId: "chrome", needsChest: false, build: deckHangar, bossGoal: "Defeat Captain Phasma", exitGoal: "Leave the hangar", accent: PALETTE.gold },
+        { id: "conduit", name: "Inquisitor Conduit", bossId: "shadow", needsChest: false, build: deckConduit, bossGoal: "Defeat the Inquisitor", exitGoal: "Leave the conduit", accent: PALETTE.purple },
+        { id: "gallery", name: "Throne Gallery", bossId: "dark", needsChest: false, build: deckGallery, bossGoal: "Defeat Darth Vader", exitGoal: "Leave the gallery", accent: PALETTE.orange },
+        { id: "trash", name: "Trash Compactor", bossId: null, needsChest: true, build: deckTrash, clearGoal: "Clear the compactor", chestGoal: "Open the salvage chest", exitGoal: "Leave the compactor", accent: PALETTE.green },
+        { id: "fallen", name: "Kylo Deck", bossId: "fallen", needsChest: false, build: deckFallen, bossGoal: "Defeat Kylo Ren", exitGoal: "Leave the deck", accent: PALETTE.lightning },
+        { id: "core", name: "Core Gate", bossId: "hooded", needsChest: false, build: deckCore, bossGoal: "Defeat the Emperor", clearGoal: "Hold the core", exitGoal: "Hold the core", accent: PALETTE.foam },
     ],
 
     bake(spec) {
@@ -169,11 +188,12 @@ const World = {
         let chest = null;
         let panel = null;
         let sticker = null;
+        let lesson = null;
         for (let y = 0; y < h; y++) {
             for (let x = 0; x < w; x++) {
                 const ch = tiles[y][x];
                 const p = tileToWorld(x, y);
-                if (ch === "P") { spawn = p; tiles[y][x] = "."; }
+                if (ch === "P") { spawn = p; tiles[y][x] = "A"; }
                 else if (ch === "G") { guards.push(p); tiles[y][x] = "."; }
                 else if (ch === "B") { boss = p; tiles[y][x] = "."; }
                 else if (ch === "E") {
@@ -187,6 +207,7 @@ const World = {
                 }
                 else if (ch === "C") chest = p;
                 else if (ch === "K") panel = p;
+                else if (ch === "L") lesson = p;
                 else if (ch === "S") { sticker = p; tiles[y][x] = "."; }
             }
         }
@@ -202,6 +223,10 @@ const World = {
             id: spec.id,
             name: spec.name,
             bossId: spec.bossId,
+            bossGoal: spec.bossGoal || "",
+            clearGoal: spec.clearGoal || "",
+            chestGoal: spec.chestGoal || "",
+            exitGoal: spec.exitGoal || "",
             needsChest: spec.needsChest,
             chestReachable: chestReachable,
             w: w,
@@ -213,7 +238,9 @@ const World = {
             chest: chest,
             panel: panel,
             sticker: sticker,
+            lesson: lesson,
             guards: guards,
+            accent: spec.accent || PALETTE.blue,
         };
     },
 
@@ -232,8 +259,12 @@ const World = {
         if (ch === "D") return game.secretOpen ? "door-open" : "door";
         if (ch === "E") return game.exitOpen() ? "exit-open" : "exit";
         if (ch === "C") return game.owns("rock") ? "floor" : "chest";
-        if (ch === "=") return "stripe";
+        if (ch === "=") return Math.floor(game.time * 4 + tx) % 2 === 0 ? "stripe" : "stripe-b";
+        if (ch === "O") return Math.floor(game.time * 3 + tx + ty) % 2 === 0 ? "viewport" : "viewport-b";
+        if (ch === "I") return "pipe";
         if (ch === "K") return "switch";
+        if (ch === "L") return "switch";
+        if (ch === "A") return "pad";
         const cycle = FLOOR_CYCLE[sector.id] || FLOOR_CYCLE.dock;
         const n = Math.abs((tx * 13 + ty * 7) % cycle.length);
         return cycle[n];
@@ -249,9 +280,42 @@ const World = {
             for (let tx = x0; tx <= x1; tx++) {
                 if (tx < 0 || tx >= sector.w) continue;
                 const key = this.tileSprite(sector, sector.tiles[ty][tx], tx, ty, game);
-                Sprites.draw(ctx, key, tx * TILE + TILE / 2 - camera.x, ty * TILE + TILE / 2 - camera.y, false);
+                const dx = tx * TILE + TILE / 2 - camera.x;
+                const dy = ty * TILE + TILE / 2 - camera.y;
+                Sprites.draw(ctx, key, dx, dy, false);
+                if (key === "stripe" || key === "stripe-b") {
+                    const pulse = 0.22 + 0.16 * (0.5 + 0.5 * Math.sin(game.time * 4 + tx * 0.4));
+                    ctx.save();
+                    ctx.globalCompositeOperation = "lighter";
+                    ctx.globalAlpha = pulse;
+                    ctx.fillStyle = key === "stripe" ? PALETTE.blue : PALETTE.gold;
+                    ctx.fillRect(Math.round(dx - TILE / 2), Math.round(dy - TILE / 2), TILE, 3);
+                    ctx.restore();
+                }
             }
         }
+        if (sector.id === "hangar") this.drawParkedSnub(ctx, camera);
+        const accent = sector.accent || PALETTE.blue;
+        ctx.save();
+        ctx.fillStyle = accent;
+        ctx.globalAlpha = 0.07;
+        ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+        ctx.globalAlpha = 0.95;
+        ctx.strokeStyle = accent;
+        ctx.lineWidth = 4;
+        ctx.strokeRect(3, 3, CANVAS_W - 6, CANVAS_H - 6);
+        ctx.restore();
+    },
+
+    drawParkedSnub(ctx, camera) {
+        const sx = 8 * TILE + TILE / 2 - camera.x;
+        const sy = 9 * TILE + TILE / 2 - camera.y;
+        ctx.save();
+        ctx.translate(Math.round(sx), Math.round(sy));
+        ctx.scale(2, 2);
+        ctx.globalAlpha = 0.92;
+        Sprites.draw(ctx, "ship-snub", 0, 0, false);
+        ctx.restore();
     },
 
     // Returns human-readable layout problems. Empty means the deck is walkable.
@@ -265,6 +329,10 @@ const World = {
         if (sector.exit) {
             const exitT = worldToTile(sector.exit.x, sector.exit.y);
             if (!reach(spawnT.x, spawnT.y, exitT.x, exitT.y, false)) issues.push(spec.id + " exit blocked");
+        }
+        if (sector.lesson) {
+            const lessonT = worldToTile(sector.lesson.x, sector.lesson.y);
+            if (!reach(spawnT.x, spawnT.y, lessonT.x, lessonT.y, false)) issues.push(spec.id + " lesson blocked");
         }
         if (sector.chest) {
             const chestT = worldToTile(sector.chest.x, sector.chest.y);

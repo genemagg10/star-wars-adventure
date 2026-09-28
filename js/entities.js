@@ -24,45 +24,64 @@ function planHooded(e) {
     e.turn += 1;
 }
 
+// One readable verb each. The shape on the floor is the warning.
+// Phasma: a lane, then a straight rush.
+// Inquisitor: a circle on you, then a blink into it.
+// Vader: an orange tether, then a pull.
+// Kylo: a gold cross, then a short lunge and a bolt.
+// Emperor: a jagged storm, then lightning.
 function startTelegraph(e, game) {
     const player = game.player;
     const dir = normalize(player.x - e.x, player.y - e.y);
     if (dir.x || dir.y) e.facing = dir;
     e.state = "telegraph";
-    e.timer = 0.68;
-    if (e.bossId === "shadow") {
-        e.blink = { x: player.x - e.facing.x * 12, y: player.y - e.facing.y * 12 };
-        e.telegraph = { kind: "ring", x: e.blink.x, y: e.blink.y, r: 22, color: PALETTE.gold };
+    const face = { x: e.facing.x, y: e.facing.y };
+    if (e.bossId === "chrome") {
+        e.timer = 1.05;
+        e.telegraph = { kind: "lane", dir: face, len: 148, width: 26, color: PALETTE.foam };
+        SoundSystem.swing();
+    } else if (e.bossId === "shadow") {
+        e.timer = 0.72;
+        e.blink = { x: player.x, y: player.y };
+        e.telegraph = { kind: "ring", x: player.x, y: player.y, r: 30, color: PALETTE.purple };
+        SoundSystem.spin();
     } else if (e.bossId === "dark") {
-        e.telegraph = { kind: "ring", x: e.x, y: e.y, r: 54, color: PALETTE.orange };
-    } else if (e.bossId === "hooded") {
-        planHooded(e);
-        const color = e.nextPower === "lightning" ? PALETTE.gold : PALETTE.orange;
-        e.telegraph = { kind: "line", dir: { x: e.facing.x, y: e.facing.y }, len: 176, color: color };
+        e.timer = 0.78;
+        e.telegraph = { kind: "tether", x2: player.x, y2: player.y, color: PALETTE.orange };
+        SoundSystem.force("push", true);
     } else if (e.bossId === "fallen") {
-        e.telegraph = { kind: "line", dir: { x: e.facing.x, y: e.facing.y }, len: 156, color: PALETTE.gold };
+        e.timer = 0.46;
+        e.telegraph = { kind: "cross", dir: face, len: 86, color: PALETTE.gold };
+        SoundSystem.shot();
     } else {
-        e.telegraph = { kind: "line", dir: { x: e.facing.x, y: e.facing.y }, len: 120, color: PALETTE.orange };
+        e.timer = 0.82;
+        planHooded(e);
+        e.telegraph = {
+            kind: "storm",
+            pts: jaggedLine(e.x, e.y, e.x + face.x * 176, e.y + face.y * 176),
+            color: PALETTE.lightning,
+        };
+        SoundSystem.bolt();
     }
 }
 
 function commitBossAttack(e, game) {
+    const player = game.player;
+    const face = e.facing || { x: 1, y: 0 };
     if (e.bossId === "chrome") {
-        e.dash = { x: e.facing.x * 270, y: e.facing.y * 270, t: 0.26 };
-    } else if (e.bossId === "fallen") {
-        e.dash = { x: e.facing.x * 340, y: e.facing.y * 340, t: 0.22 };
+        e.dash = { x: face.x * 190, y: face.y * 190, t: 0.36 };
     } else if (e.bossId === "shadow") {
         if (e.blink && !game.circleBlocked(e.blink.x, e.blink.y, e.r)) {
             e.x = e.blink.x;
             e.y = e.blink.y;
         }
-        if (dist(e.x, e.y, game.player.x, game.player.y) < e.r + game.player.r + 6) {
-            Combat.hurtPlayer(game, 1, e.x, e.y);
-        }
+        game.fx.push({ kind: "ring", x: e.x, y: e.y, r: 8, life: 0.28, color: PALETTE.purple, grow: 140 });
+        if (dist(e.x, e.y, player.x, player.y) < 30) Combat.hurtPlayer(game, 1, e.x, e.y);
     } else if (e.bossId === "dark") {
-        if (dist(e.x, e.y, game.player.x, game.player.y) < 60 + game.player.r) {
-            Combat.hurtPlayer(game, 1, e.x, e.y);
-        }
+        const pull = normalize(e.x - player.x, e.y - player.y);
+        player.kx += pull.x * 240;
+        player.ky += pull.y * 240;
+        if (dist(e.x, e.y, player.x, player.y) < 64) Combat.hurtPlayer(game, 1, e.x, e.y);
         const guards = game.enemies.filter((x) => x.alive && x.kind === "guard").length;
         if (e.summons < 2 && guards < 2) {
             const sx = e.x + 28;
@@ -72,10 +91,26 @@ function commitBossAttack(e, game) {
                 e.summons += 1;
             }
         }
-        game.fx.push({ kind: "ring", x: e.x, y: e.y, r: 10, life: 0.28, color: PALETTE.orange });
+        game.fx.push({ kind: "ring", x: e.x, y: e.y, r: 10, life: 0.28, color: PALETTE.orange, grow: 80 });
+    } else if (e.bossId === "fallen") {
+        e.dash = { x: face.x * 220, y: face.y * 220, t: 0.14 };
+        game.shots.push({
+            kind: "bolt",
+            team: "foe",
+            x: e.x + face.x * 16,
+            y: e.y + face.y * 16,
+            vx: face.x * 240,
+            vy: face.y * 240,
+            r: 4,
+            dmg: 1,
+            life: 0.7,
+            color: PALETTE.gold,
+            hit: {},
+        });
     } else if (e.bossId === "hooded") {
         const power = e.nextPower || "lightning";
         Combat.cast(game, e, power, { team: "foe", dmg: 1 });
+        game.fx.push({ kind: "ring", x: e.x, y: e.y, r: 16, life: 0.24, color: PALETTE.lightning, grow: 90 });
     }
     e.telegraph = null;
 }
@@ -87,10 +122,31 @@ function updateBoss(e, game, dt) {
     if (e.state === "approach") {
         const dir = normalize(player.x - e.x, player.y - e.y);
         if (dir.x || dir.y) e.facing = dir;
-        slide(e, (dir.x * e.speed + e.kx) * dt, (dir.y * e.speed + e.ky) * dt, game);
+        let mx = dir.x;
+        let my = dir.y;
+        let speed = e.speed;
+        if (e.bossId === "shadow") {
+            const orbit = normalize(dir.x * 0.35 - dir.y, dir.y * 0.35 + dir.x);
+            mx = orbit.x;
+            my = orbit.y;
+        } else if (e.bossId === "hooded") {
+            speed *= 0.35;
+        } else if (e.bossId === "dark") {
+            speed *= 0.72;
+        }
+        slide(e, (mx * speed + e.kx) * dt, (my * speed + e.ky) * dt, game);
         e.timer -= dt;
-        if (e.timer <= 0 && dist(e.x, e.y, player.x, player.y) < 260) startTelegraph(e, game);
+        const reach = e.bossId === "hooded" ? 320 : e.bossId === "shadow" ? 250 : e.bossId === "chrome" ? 200 : e.bossId === "dark" ? 168 : 148;
+        if (e.timer <= 0 && dist(e.x, e.y, player.x, player.y) < reach) startTelegraph(e, game);
     } else if (e.state === "telegraph") {
+        if (e.telegraph && e.telegraph.kind === "tether") {
+            e.telegraph.x2 = player.x;
+            e.telegraph.y2 = player.y;
+        }
+        if (e.telegraph && e.telegraph.kind === "storm") {
+            const face = e.facing || { x: 1, y: 0 };
+            e.telegraph.pts = jaggedLine(e.x, e.y, e.x + face.x * 176, e.y + face.y * 176);
+        }
         e.timer -= dt;
         if (e.timer <= 0) {
             e.state = "recover";
@@ -122,10 +178,28 @@ function updateGuard(e, game, dt) {
     const p = game.player;
     const dir = normalize(p.x - e.x, p.y - e.y);
     const d = dist(e.x, e.y, p.x, p.y);
+    if (e.hp < e.maxHp) e.broken = true;
+    const sight = (tx, ty) => game.solidAt(tx, ty);
+    const seen = d < 108 && !lineBlocked(sight, e.x, e.y, p.x, p.y);
+    if (!e.broken && !seen) {
+        if (e.homeX == null) {
+            e.homeX = e.x;
+            e.homeY = e.y;
+        }
+        e.marching = true;
+        const phase = Math.sin(game.time * 2.4);
+        const targetX = e.homeX + phase * 10;
+        const step = normalize(targetX - e.x, e.homeY - e.y);
+        e.facing = { x: phase >= 0 ? 1 : -1, y: 0 };
+        if (Math.abs(targetX - e.x) > 1) slide(e, step.x * 32 * dt, step.y * 32 * dt, game);
+        return;
+    }
+    e.broken = true;
+    e.marching = false;
     if (dir.x || dir.y) e.facing = dir;
     e.timer -= dt;
     if (d > 22) slide(e, (dir.x * e.speed + e.kx) * dt, (dir.y * e.speed + e.ky) * dt, game);
-    if (e.timer <= 0 && d < GUARD_STATS.range && !lineBlocked(game.solidAt, e.x, e.y, p.x, p.y)) {
+    if (e.timer <= 0 && d < GUARD_STATS.range && !lineBlocked(sight, e.x, e.y, p.x, p.y)) {
         e.timer = GUARD_STATS.shot;
         const aim = Math.atan2(dir.y, dir.x) + (Math.random() - 0.5) * 0.4;
         const spd = 118;
@@ -162,6 +236,7 @@ const Entities = {
             hopeCd: 0,
             invuln: 0.7,
             swing: 0,
+            ignite: 0,
             kx: 0,
             ky: 0,
             moving: false,
@@ -239,7 +314,7 @@ const Entities = {
         }
         this.separate(game);
         if (game.companionJoined) {
-            if (!game.companion) game.companion = this.makeCompanion(p.x, p.y + 16);
+            if (!game.companion) game.companion = this.makeCompanion(game.player.x, game.player.y + 16);
             this.updateCompanion(game, dt);
             this.updateEcho(game, dt);
         }
@@ -258,6 +333,7 @@ const Entities = {
         p.hopeCd = Math.max(0, p.hopeCd - dt);
         p.invuln = Math.max(0, p.invuln - dt);
         p.swing = Math.max(0, p.swing - dt);
+        p.ignite = Math.max(0, (p.ignite || 0) - dt);
         decayKick(p, dt);
         const hero = HEROES[p.heroId];
         const m = input.move;
@@ -305,6 +381,8 @@ const Entities = {
             slide(c, dir.x * 120 * dt, dir.y * 120 * dt, game);
         }
         c.bob = (c.bob || 0) + dt;
+        c.echoT = Math.max(0, (c.echoT || 0) - dt);
+        c.wiggle = Math.max(0, (c.wiggle || 0) - dt);
     },
 
     updateEcho(game, dt) {
@@ -325,8 +403,11 @@ const Entities = {
         if (!best) return;
         const c = game.companion;
         c.facing = normalize(best.x - c.x, best.y - c.y);
+        c.echoT = 0.55;
         game.companionCd = 8;
         Combat.cast(game, c, game.lastPower, { weak: true, team: "player" });
+        game.fx.push({ kind: "ring", x: c.x, y: c.y, r: 6, life: 0.4, color: PALETTE.gold });
+        Combat.burst(game, c.x, c.y, PALETTE.gold);
     },
 
     hazard(game, dt) {
@@ -366,12 +447,14 @@ const Entities = {
         }
         drawShots(ctx, game);
         drawFx(ctx, game);
+        drawNumbers(ctx, game);
         if (game.hint) {
+            const touch = document.body.classList.contains("touch") || document.body.classList.contains("has-coarse");
             ctx.fillStyle = PALETTE.gold;
             ctx.font = "12px ui-monospace, monospace";
             ctx.textAlign = "center";
             ctx.textBaseline = "bottom";
-            ctx.fillText("E  " + game.hint.label, game.hint.x - cam.x, game.hint.y - cam.y - 16);
+            ctx.fillText((touch ? "" : "E  ") + game.hint.label, game.hint.x - cam.x, game.hint.y - cam.y - 16);
         }
     },
 };
@@ -381,15 +464,48 @@ function drawTelegraph(ctx, e, cam) {
     if (!t) return;
     ctx.save();
     ctx.strokeStyle = t.color;
+    ctx.fillStyle = t.color;
     ctx.lineWidth = 2;
-    ctx.beginPath();
+    const x = e.x - cam.x;
+    const y = e.y - cam.y;
     if (t.kind === "ring") {
-        ctx.arc(t.x - cam.x, t.y - cam.y, t.r, 0, Math.PI * 2);
-    } else {
-        ctx.moveTo(e.x - cam.x, e.y - cam.y);
-        ctx.lineTo(e.x + t.dir.x * t.len - cam.x, e.y + t.dir.y * t.len - cam.y);
+        const left = Math.max(0, Math.min(1, (e.timer || 0) / 0.72));
+        const r = t.r * (0.62 + 0.38 * (1 - left));
+        ctx.globalAlpha = 0.9;
+        ctx.beginPath();
+        ctx.arc(t.x - cam.x, t.y - cam.y, r, 0, Math.PI * 2);
+        ctx.stroke();
+    } else if (t.kind === "lane" && t.dir) {
+        ctx.translate(x, y);
+        ctx.rotate(Math.atan2(t.dir.y, t.dir.x));
+        ctx.globalAlpha = 0.35;
+        ctx.fillRect(8, -t.width / 2, t.len, t.width);
+        ctx.globalAlpha = 1;
+        ctx.strokeRect(8, -t.width / 2, t.len, t.width);
+    } else if (t.kind === "tether") {
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(t.x2 - cam.x, t.y2 - cam.y);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(t.x2 - cam.x, t.y2 - cam.y, 8, 0, Math.PI * 2);
+        ctx.stroke();
+    } else if (t.kind === "cross" && t.dir) {
+        const ang = Math.atan2(t.dir.y, t.dir.x);
+        ctx.beginPath();
+        for (let s = -1; s <= 1; s += 2) {
+            const a = ang + s * 0.7;
+            ctx.moveTo(x, y);
+            ctx.lineTo(x + Math.cos(a) * t.len, y + Math.sin(a) * t.len);
+        }
+        ctx.stroke();
+    } else if (t.kind === "storm" && t.pts && t.pts.length) {
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(t.pts[0].x - cam.x, t.pts[0].y - cam.y);
+        for (let p = 1; p < t.pts.length; p++) ctx.lineTo(t.pts[p].x - cam.x, t.pts[p].y - cam.y);
+        ctx.stroke();
     }
-    ctx.stroke();
     ctx.restore();
 }
 
@@ -404,22 +520,50 @@ function drawPlayer(ctx, game) {
     const p = game.player;
     const cam = game.camera;
     if (p.invuln > 0 && Math.floor(game.time * 16) % 2 === 0) return;
+    const bobRate = p.heroId === "rae" ? 12 : 8;
+    const bob = p.moving ? (Math.floor(game.time * bobRate) % 2) : 0;
     const sx = p.x - cam.x;
-    const sy = p.y - cam.y + (p.moving ? (Math.floor(game.time * 8) % 2) : 0);
+    const sy = p.y - cam.y + bob;
     shadow(ctx, sx, sy);
     const hero = HEROES[p.heroId];
     const color = saberById(game.saber).color;
+    if (p.ignite > 0 && hero.melee !== "bowcaster") {
+        const snap = p.ignite / 0.09;
+        ctx.save();
+        ctx.globalCompositeOperation = "lighter";
+        ctx.globalAlpha = 0.55 * snap;
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(sx, sy, 36, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 0.8 * snap;
+        ctx.fillStyle = PALETTE.foam;
+        ctx.beginPath();
+        ctx.arc(sx, sy, 8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+        Sprites.drawBlade(ctx, sx, sy, p.facing, 22, color, 6);
+    }
     if (hero.melee === "spin" && p.swing > 0) {
         ctx.save();
         ctx.strokeStyle = color;
-        ctx.lineWidth = 3;
+        ctx.globalAlpha = 0.35;
+        ctx.lineWidth = 8;
         ctx.beginPath();
         ctx.arc(sx, sy, hero.range * 0.72, 0, Math.PI * 2);
         ctx.stroke();
+        ctx.globalAlpha = 1;
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        ctx.strokeStyle = PALETTE.foam;
+        ctx.lineWidth = 1;
+        ctx.stroke();
         ctx.restore();
+    } else if (p.swing > 0) {
+        Sprites.drawSwing(ctx, sx, sy, p.facing, hero.range, color, p.swing);
+        Sprites.drawBlade(ctx, sx, sy, p.facing, hero.range, color, 4);
     } else {
-        const len = p.swing > 0 ? hero.range : 16;
-        Sprites.drawBlade(ctx, sx, sy, p.facing, len, color, p.swing > 0 ? 4 : 3);
+        Sprites.drawBlade(ctx, sx, sy, p.facing, 16, color, 3);
     }
     Sprites.draw(ctx, Sprites.heroKey(p.heroId, p.facing), sx, sy, Sprites.heroFlip(p.facing));
 }
@@ -429,21 +573,41 @@ function drawCompanion(ctx, game) {
     const cam = game.camera;
     const sx = c.x - cam.x;
     const sy = c.y - cam.y + Math.sin((c.bob || 0) * 6) * 1;
+    const glow = c.echoT > 0 ? 0.85 : 0.4;
+    ctx.save();
+    ctx.globalAlpha = glow;
+    ctx.strokeStyle = PALETTE.gold;
+    ctx.lineWidth = c.echoT > 0 ? 3 : 2;
+    ctx.beginPath();
+    ctx.arc(sx, sy, c.echoT > 0 ? 14 + (0.55 - c.echoT) * 10 : 12, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
     shadow(ctx, sx, sy);
+    const flap = (c.wiggle || 0) > 0 ? Math.sin(game.time * 28) * 3 : 0;
     Sprites.draw(ctx, "little", sx, sy, c.facing.x < 0);
+    if (flap) {
+        ctx.fillStyle = PALETTE.gold;
+        ctx.fillRect(Math.round(sx - 8), Math.round(sy - 12 + flap), 3, 3);
+        ctx.fillRect(Math.round(sx + 5), Math.round(sy - 12 - flap), 3, 3);
+    }
 }
 
 function drawEnemy(ctx, game, e) {
     const cam = game.camera;
+    const step = e.marching ? (Math.floor(game.time * 3) % 2) * 2 : 0;
     const sx = e.x - cam.x;
-    const sy = e.y - cam.y;
+    const sy = e.y - cam.y - step;
     shadow(ctx, sx, sy);
-    ctx.save();
-    if (e.hitFlash > 0) ctx.globalAlpha = 0.65;
     const key = e.kind === "boss" ? "boss-" + e.bossId : "guard";
     const flip = e.facing.x < 0;
     Sprites.draw(ctx, key, sx, sy, flip);
-    ctx.restore();
+    if (e.hitFlash > 0) {
+        ctx.save();
+        ctx.globalCompositeOperation = "lighter";
+        ctx.globalAlpha = 0.85;
+        Sprites.draw(ctx, key, sx, sy, flip);
+        ctx.restore();
+    }
     if (e.kind === "boss") {
         const w = 36;
         const pct = Math.max(0, e.hp / e.maxHp);
@@ -462,15 +626,31 @@ function drawShots(ctx, game) {
         const y = s.y - cam.y - (s.kind === "rock" ? Math.sin(s.hop * 10) * 8 : 0);
         ctx.fillStyle = s.color;
         if (s.kind === "saber") {
-            ctx.fillRect(x - 2, y - 6, 4, 12);
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate((s.spin || 0));
+            ctx.fillStyle = s.color;
+            ctx.globalAlpha = 0.35;
+            ctx.fillRect(-4, -10, 8, 20);
+            ctx.globalAlpha = 1;
+            ctx.fillRect(-2, -8, 4, 16);
+            ctx.fillStyle = PALETTE.foam;
+            ctx.fillRect(-1, -6, 2, 12);
+            ctx.restore();
         } else if (s.kind === "bow") {
             ctx.fillStyle = PALETTE.gold;
             ctx.fillRect(x - 3, y - 3, 6, 6);
         } else if (s.kind === "rock") {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate((s.hop || 0) * 9);
             ctx.fillStyle = PALETTE.panel;
-            ctx.fillRect(x - 4, y - 4, 8, 8);
+            ctx.fillRect(-5, -4, 10, 8);
             ctx.fillStyle = PALETTE.ink;
-            ctx.fillRect(x - 2, y - 2, 3, 3);
+            ctx.fillRect(-2, -2, 3, 3);
+            ctx.fillStyle = PALETTE.gold;
+            ctx.fillRect(1, -3, 2, 2);
+            ctx.restore();
         } else {
             ctx.fillStyle = PALETTE.foam;
             ctx.fillRect(x - 2, y - 2, 4, 4);
@@ -486,19 +666,49 @@ function drawFx(ctx, game) {
         ctx.globalAlpha = Math.max(0, Math.min(1, f.life * 3));
         ctx.strokeStyle = f.color;
         ctx.fillStyle = f.color;
-        if (f.kind === "spark") ctx.fillRect(f.x - cam.x, f.y - cam.y, 2, 2);
-        else if (f.kind === "bolt") {
-            ctx.lineWidth = 2;
+        if (f.kind === "spark") {
+            const max = f.maxLife || f.life || 1;
+            ctx.globalAlpha = Math.max(0, Math.min(1, f.life / max));
+            ctx.fillRect(f.x - cam.x, f.y - cam.y, 2, 2);
+        }
+        else if (f.kind === "bolt" && f.pts && f.pts.length) {
+            ctx.lineWidth = 3;
             ctx.beginPath();
-            ctx.moveTo(f.x1 - cam.x, f.y1 - cam.y);
-            ctx.lineTo(f.x2 - cam.x, f.y2 - cam.y);
+            ctx.moveTo(f.pts[0].x - cam.x, f.pts[0].y - cam.y);
+            for (let p = 1; p < f.pts.length; p++) ctx.lineTo(f.pts[p].x - cam.x, f.pts[p].y - cam.y);
+            ctx.stroke();
+            ctx.strokeStyle = PALETTE.foam;
+            ctx.lineWidth = 1;
             ctx.stroke();
         } else if (f.kind === "ring") {
-            ctx.lineWidth = 2;
+            ctx.lineWidth = f.grow ? 3 : 2;
             ctx.beginPath();
             ctx.arc(f.x - cam.x, f.y - cam.y, f.r, 0, Math.PI * 2);
             ctx.stroke();
         }
         ctx.restore();
     }
+}
+
+function drawNumbers(ctx, game) {
+    const list = game.numbers;
+    if (!list || !list.length) return;
+    const cam = game.camera;
+    ctx.save();
+    ctx.font = "bold 16px ui-monospace, monospace";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    for (let i = 0; i < list.length; i++) {
+        const d = list[i];
+        const max = d.maxLife || 0.75;
+        ctx.globalAlpha = Math.max(0, Math.min(1, d.life / max));
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = PALETTE.ink;
+        ctx.fillStyle = d.heal ? PALETTE.green : PALETTE.foam;
+        const x = d.x - cam.x;
+        const y = d.y - cam.y;
+        ctx.strokeText(d.text, x, y);
+        ctx.fillText(d.text, x, y);
+    }
+    ctx.restore();
 }

@@ -56,7 +56,93 @@ html, body {
     width: min(560px, 100%);
     background: rgba(28, 39, 64, 0.94);
     border: 2px solid var(--panel);
+    border-radius: 18px;
     padding: 22px 22px 18px;
+}
+
+.panel.loud {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 4px rgba(255, 200, 87, 0.38);
+    animation: card-pop 0.18s ease-out;
+}
+
+.panel.loud h2 {
+    color: var(--gold);
+    font-size: 32px;
+}
+
+.panel.power-drop {
+    box-shadow: 0 0 0 6px rgba(255, 200, 87, 0.62), 0 0 36px rgba(77, 163, 255, 0.35);
+    animation: card-pop 0.22s ease-out, power-glow 0.7s ease-out;
+}
+
+@keyframes power-glow {
+    from { box-shadow: 0 0 0 0 rgba(255, 200, 87, 0.9); }
+    to { box-shadow: 0 0 0 10px rgba(255, 200, 87, 0); }
+}
+
+.celebrate {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 14px;
+    min-height: 64px;
+}
+
+.celebrate.hidden { display: none; }
+
+.celebrate canvas {
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    background: transparent;
+}
+
+#card-who {
+    margin: 0;
+    font-size: 18px;
+}
+
+#card-saber {
+    margin: 4px 0 0;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-size: 13px;
+}
+
+#card-grogu.hop {
+    animation: grogu-hop 0.45s ease-in-out infinite;
+}
+
+#card-grogu.hidden { display: none; }
+
+@keyframes grogu-hop {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+}
+
+#card-sparks {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    overflow: visible;
+}
+
+#card-sparks i {
+    position: absolute;
+    bottom: 8px;
+    width: 6px;
+    height: 6px;
+    animation: spark-up 0.75s ease-out forwards;
+}
+
+@keyframes spark-up {
+    to { transform: translateY(-36px); opacity: 0; }
+}
+
+@keyframes card-pop {
+    from { transform: scale(0.94); }
+    to { transform: scale(1); }
 }
 
 .panel.wide { width: min(880px, 100%); }
@@ -117,6 +203,17 @@ button:hover, button:focus-visible {
     background: var(--hull);
     outline: 2px solid var(--gold);
     outline-offset: 2px;
+}
+
+.actions button:first-child {
+    background: var(--gold);
+    color: var(--ink);
+    border-color: var(--gold);
+}
+
+.actions button:first-child:hover,
+.actions button:first-child:focus-visible {
+    background: #ffe09a;
 }
 
 .choices {
@@ -220,6 +317,68 @@ kbd {
 body.playing.touch #touch,
 body.playing.has-coarse #touch { display: block; }
 
+body.playing.touch.hud-lock #touch,
+body.playing.has-coarse.hud-lock #touch { display: none; }
+
+#btn-pause-touch {
+    pointer-events: auto;
+    position: absolute;
+    top: max(10px, env(safe-area-inset-top));
+    left: max(12px, env(safe-area-inset-left));
+    min-width: 76px;
+    min-height: 44px;
+    border-radius: 22px;
+    border-color: var(--foam);
+    background: rgba(11, 16, 32, 0.78);
+    z-index: 4;
+}
+
+#power-chips {
+    pointer-events: auto;
+    position: absolute;
+    right: max(16px, env(safe-area-inset-right));
+    bottom: calc(max(16px, env(safe-area-inset-bottom)) + 88px);
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+#power-chips[data-empty="1"] { display: none; }
+
+.power-chip {
+    min-width: 52px;
+    min-height: 44px;
+    padding: 4px 8px;
+    border-radius: 14px;
+    font-size: 11px;
+    line-height: 1.1;
+    letter-spacing: 0.04em;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    touch-action: none;
+}
+
+.power-chip b { font-size: 14px; }
+
+.power-chip[data-power="push"] { border-color: var(--blue); }
+.power-chip[data-power="throw"] { border-color: var(--purple); }
+.power-chip[data-power="lightning"] { border-color: var(--lightning); }
+.power-chip[data-power="rock"] { border-color: var(--gold); }
+
+.power-chip.is-locked {
+    opacity: 0.35;
+    border-color: var(--panel);
+}
+
+.power-chip.is-on {
+    background: var(--gold);
+    color: var(--ink);
+    border-color: var(--gold);
+    opacity: 1;
+}
+
 #stick {
     pointer-events: auto;
     position: absolute;
@@ -259,12 +418,28 @@ body.playing.has-coarse #touch { display: block; }
     height: 76px;
     border-radius: 50%;
     padding: 6px;
+    font-size: 26px;
+    letter-spacing: 0;
+    text-transform: none;
     touch-action: none;
 }
 
 #btn-attack { border-color: var(--danger); }
 #btn-power { border-color: var(--lightning); }
 #btn-interact { border-color: var(--gold); }
+
+#btn-power.is-idle,
+#btn-interact.is-idle {
+    opacity: 0.38;
+    border-color: var(--panel);
+}
+
+#btn-interact.is-ready {
+    opacity: 1;
+    border-color: var(--gold);
+    background: rgba(255, 200, 87, 0.18);
+    color: var(--gold);
+}
 
 #rotate-gate {
     display: none;
@@ -289,4 +464,8 @@ body.playing.has-coarse #touch { display: block; }
     .lede { margin-top: 6px; }
     .choice span { display: none; }
     .choice canvas { width: 48px; height: 48px; }
+    #stick { width: 108px; height: 108px; }
+    #touch-actions button { width: 64px; height: 64px; font-size: 11px; }
+    #power-chips { bottom: calc(max(8px, env(safe-area-inset-bottom)) + 74px); }
+    .panel.loud h2 { font-size: 24px; }
 }

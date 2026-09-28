@@ -21,6 +21,13 @@ const PALETTE = {
     danger: "#FF7A45",
     lightning: "#C9B6FF",
     orange: "#FF9A3C",
+    fur: "#C47A3A",
+    furDeep: "#8A4E22",
+    white: "#F4F6FA",
+    vader: "#1A1A22",
+    cloak: "#2A1840",
+    metal: "#8FA4C4",
+    skin: "#F3D2B0",
 };
 
 function canvasWidthForAspect(aspect) {
@@ -82,6 +89,7 @@ const POWERS = {
 };
 
 const POWER_SLOTS = ["push", "throw", "lightning", "rock"];
+const POWER_COOLDOWN = 1.15;
 
 const SAVE_PREFIX = "starStationAdventure.";
 
@@ -100,7 +108,7 @@ const GUARD_STATS = {
 };
 
 const BOSS_STATS = {
-    chrome: { name: "Captain Phasma", hp: 26, speed: 68, gap: 1.05 },
+    chrome: { name: "Captain Phasma", hp: 16, speed: 48, gap: 1.75 },
     shadow: { name: "Inquisitor", hp: 30, speed: 78, gap: 1.2 },
     dark: { name: "Darth Vader", hp: 36, speed: 54, gap: 1.25 },
     fallen: { name: "Kylo Ren", hp: 28, speed: 88, gap: 0.95 },
